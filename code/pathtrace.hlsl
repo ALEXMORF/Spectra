@@ -90,8 +90,7 @@ query Map(float3 P)
     
     float Floor = P.y;
     float Sphere = Sculpture(P - float3(0, 1, 0));
-    float Light = length(P - float3(0, 3.5, 0)) - 0.8;
-    Q.Dist = min(min(Floor, Sphere), Light);
+    Q.Dist = min(Floor, Sphere);
     
     if (Q.Dist == Floor)
     {
@@ -100,10 +99,6 @@ query Map(float3 P)
     else if (Q.Dist == Sphere)
     {
         Q.MatId = 1;
-    }
-    else if (Q.Dist == Light)
-    {
-        Q.MatId = 2;
     }
     else
     {
@@ -127,11 +122,6 @@ material MapMaterial(int ObjId, float3 P)
         Mat.Albedo = 1.0;
         Mat.Emission = 0.0;
     }
-    else if (ObjId == 2) // light
-    {
-        Mat.Albedo = 1.0;
-        Mat.Emission = 10.0;
-    }
     else // invalid id
     {
         // give it a disgusting purple
@@ -140,6 +130,11 @@ material MapMaterial(int ObjId, float3 P)
     }
     
     return Mat;
+}
+
+float3 Env(float3 Rd)
+{
+    return float3(0.3, 0.4, 0.5);
 }
 
 float3 CalcGradient(float3 P)
@@ -161,7 +156,7 @@ hit RayTrace(float3 Ro, float3 Rd)
     int MatId = -1;
     float T = 0.0;
     int Iter = 0;
-    for (Iter = 0; Iter < 256 && T < T_MAX; ++Iter)
+    for (Iter = 0; Iter < 512 && T < T_MAX; ++Iter)
     {
         query Q = Map(Ro + T*Rd);
         if (Q.Dist < 0.001)
@@ -216,6 +211,10 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
             
             Radiance += Attenuation * Mat.Emission;
             float3 BRDF = Mat.Albedo/Pi * clamp(dot(HitN, -Rd), 0.0, 1.0);
+            if (Depth == 0)
+            {
+                BRDF = Mat.Albedo/Pi;
+            }
             Attenuation *= BRDF;
             
             Ro = HitP + 0.01*HitN;
@@ -223,6 +222,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         }
         else
         {
+            Radiance += Attenuation * Env(Rd);
             break;
         }
     }
