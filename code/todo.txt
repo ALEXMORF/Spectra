@@ -1,7 +1,11 @@
-- create D3D device resources []
+- create D3D device resources [x]
 -   debug layer [x]
 -   command context [x]
 -   descriptor resources [x]
 -   compute pso [x]
 -   texture [x]
--   fence []
+-   fence [x]
+
+- dynamic camera []
+- denoiser []
+- shader hotload []

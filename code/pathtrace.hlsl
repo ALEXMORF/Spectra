@@ -232,7 +232,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     if (Context.FrameIndex != 0)
     {
         float3 HistCol = OutputTex[ThreadId].rgb;
-        OutputTex[ThreadId] = float4(lerp(HistCol, Col, 0.01), 1.0);
+        OutputTex[ThreadId] = float4(lerp(HistCol, Col, 0.2), 1.0);
     }
     else
     {
