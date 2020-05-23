@@ -4,6 +4,7 @@
 #define local_persist static
 #define global static
 #define ASSERT(Value) do { if (!(Value)) *(int *)0 = 0; } while (0)
+#define ARRAY_COUNT(Array) (sizeof(Array)/sizeof((Array)[0]))
 
 #include <stdint.h>
 

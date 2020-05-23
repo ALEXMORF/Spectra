@@ -29,11 +29,104 @@ struct pso
 struct texture
 {
     ID3D12Resource *Handle;
+    D3D12_RESOURCE_STATES ResourceState;
     
     descriptor UAV;
     descriptor SRV;
     descriptor RTV;
 };
+
+struct gpu_context
+{
+    ID3D12CommandAllocator *CmdAllocator;
+    ID3D12GraphicsCommandList *CmdList;
+    ID3D12CommandQueue *CmdQueue;
+    
+    D3D12_RESOURCE_BARRIER CachedBarriers[16];
+    int CachedBarrierCount;
+    
+    void Reset();
+    void UAVBarrier(texture *Tex);
+    void TransitionBarrier(texture *Tex, D3D12_RESOURCE_STATES NewState);
+    void FlushBarriers();
+    
+    void _PushToBarrierCache(D3D12_RESOURCE_BARRIER Barrier);
+};
+
+//
+//
+// GPU context
+
+internal gpu_context
+InitGPUContext(ID3D12Device *D)
+{
+    gpu_context Context = {};
+    
+    D3D12_COMMAND_QUEUE_DESC CmdQueueDesc = {};
+    CmdQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+    CmdQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+    CmdQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+    DXOP(D->CreateCommandQueue(&CmdQueueDesc, IID_PPV_ARGS(&Context.CmdQueue)));
+    
+    DXOP(D->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                   IID_PPV_ARGS(&Context.CmdAllocator)));
+    
+    DXOP(D->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+                              Context.CmdAllocator, 0,
+                              IID_PPV_ARGS(&Context.CmdList)));
+    DXOP(Context.CmdList->Close());
+    
+    return Context;
+}
+
+void
+gpu_context::Reset()
+{
+    DXOP(CmdAllocator->Reset());
+    DXOP(CmdList->Reset(CmdAllocator, 0));
+}
+
+void 
+gpu_context::UAVBarrier(texture *Tex)
+{
+    D3D12_RESOURCE_BARRIER Barrier = {};
+    Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
+    Barrier.UAV.pResource = Tex->Handle;
+    
+    _PushToBarrierCache(Barrier);
+}
+
+void 
+gpu_context::TransitionBarrier(texture *Tex, D3D12_RESOURCE_STATES NewState)
+{
+    D3D12_RESOURCE_BARRIER Barrier = {};
+    Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+    Barrier.Transition.pResource = Tex->Handle;
+    Barrier.Transition.StateBefore = Tex->ResourceState;
+    Barrier.Transition.StateAfter = NewState;
+    
+    _PushToBarrierCache(Barrier);
+    
+    Tex->ResourceState = NewState;
+}
+
+void 
+gpu_context::_PushToBarrierCache(D3D12_RESOURCE_BARRIER Barrier)
+{
+    CachedBarriers[CachedBarrierCount++] = Barrier;
+    
+    if (CachedBarrierCount == ARRAY_COUNT(CachedBarriers))
+    {
+        FlushBarriers();
+    }
+}
+
+void
+gpu_context::FlushBarriers()
+{
+    CmdList->ResourceBarrier(CachedBarrierCount, CachedBarriers);
+    CachedBarrierCount = 0;
+}
 
 //
 //
@@ -171,10 +264,20 @@ InitComputePSO(ID3D12Device *D, LPCWSTR Filename, char *EntryPoint)
 // textures
 
 internal texture
+WrapTexture(ID3D12Resource *Handle, D3D12_RESOURCE_STATES ResourceState)
+{
+    texture Tex = {};
+    Tex.ResourceState = ResourceState;
+    Tex.Handle = Handle;
+    return Tex;
+}
+
+internal texture
 InitTexture2D(ID3D12Device *D, int Width, int Height, DXGI_FORMAT Format,
               D3D12_RESOURCE_FLAGS Flags, D3D12_RESOURCE_STATES ResourceState)
 {
     texture Tex = {};
+    Tex.ResourceState = ResourceState;
     
     D3D12_HEAP_PROPERTIES HeapProps = {};
     HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;

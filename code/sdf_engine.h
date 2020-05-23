@@ -18,9 +18,7 @@ internal void Win32Panic(char *Fmt, ...);
 struct engine
 {
     ID3D12Device *Device;
-    ID3D12CommandAllocator *CmdAllocator;
-    ID3D12GraphicsCommandList *CmdList;
-    ID3D12CommandQueue *CmdQueue;
+    gpu_context Context;
     IDXGISwapChain3 *SwapChain;
     
     descriptor_arena UAVArena;
@@ -28,6 +26,7 @@ struct engine
     pso ClearPSO;
     
     texture OutputTex;
+    texture BackBufferTexs[BACKBUFFER_COUNT];
     
     b32 IsInitialized;
     

@@ -13,22 +13,16 @@ engine::UpdateAndRender(HWND Window)
                                IID_PPV_ARGS(&Device)));
         ID3D12Device *D = Device;
         
-        D3D12_COMMAND_QUEUE_DESC CmdQueueDesc = {};
-        CmdQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-        CmdQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
-        CmdQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-        DXOP(D->CreateCommandQueue(&CmdQueueDesc, IID_PPV_ARGS(&CmdQueue)));
+        Context = InitGPUContext(D);
         
-        SwapChain = CreateSwapChain(CmdQueue, Window,
-                                    BACKBUFFER_COUNT);
+        SwapChain = CreateSwapChain(Context.CmdQueue, Window, BACKBUFFER_COUNT);
         
-        DXOP(D->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                       IID_PPV_ARGS(&CmdAllocator)));
-        
-        DXOP(D->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                  CmdAllocator, 0,
-                                  IID_PPV_ARGS(&CmdList)));
-        DXOP(CmdList->Close());
+        for (int I = 0; I < BACKBUFFER_COUNT; ++I)
+        {
+            ID3D12Resource *BackBuffer = 0;
+            SwapChain->GetBuffer(I, IID_PPV_ARGS(&BackBuffer));
+            BackBufferTexs[I] = WrapTexture(BackBuffer, D3D12_RESOURCE_STATE_PRESENT);
+        }
         
         UAVArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         
@@ -45,18 +39,40 @@ engine::UpdateAndRender(HWND Window)
         IsInitialized = true;
     }
     
-    DXOP(CmdAllocator->Reset());
-    DXOP(CmdList->Reset(CmdAllocator, 0));
+    Context.Reset();
     
     int ThreadGroupCountX = (WIDTH-1)/32 + 1;
     int ThreadGroupCountY = (HEIGHT-1)/32 + 1;
     
+    ID3D12GraphicsCommandList *CmdList = Context.CmdList;
     CmdList->SetPipelineState(ClearPSO.Handle);
     CmdList->SetComputeRootSignature(ClearPSO.RootSignature);
+    CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
     CmdList->SetComputeRootDescriptorTable(0, OutputTex.UAV.GPUHandle);
     CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
     
-    ASSERT(!"TODO(chen): Blit to backbuffer");
-    ASSERT(!"TODO(chen): Submit frame & wait");
+    Context.UAVBarrier(&OutputTex);
+    Context.FlushBarriers();
+    
+    UINT BackBufferIndex = SwapChain->GetCurrentBackBufferIndex();
+    texture *BackBufferTex = BackBufferTexs + BackBufferIndex;
+    
+    Context.TransitionBarrier(&OutputTex, 
+                              D3D12_RESOURCE_STATE_COPY_SOURCE);
+    Context.TransitionBarrier(BackBufferTex, 
+                              D3D12_RESOURCE_STATE_COPY_DEST);
+    Context.FlushBarriers();
+    
+    CmdList->CopyResource(BackBufferTex->Handle, OutputTex.Handle);
+    
+    Context.TransitionBarrier(&OutputTex, 
+                              D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+    Context.TransitionBarrier(BackBufferTex, 
+                              D3D12_RESOURCE_STATE_PRESENT);
+    Context.FlushBarriers();
+    
+    DXOP(CmdList->Close());
+    
+    ASSERT(!"TODO(chen): Submit cmd buffer & wait");
     ASSERT(!"TODO(chen): Present");
 }
