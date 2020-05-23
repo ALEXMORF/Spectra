@@ -7,6 +7,8 @@
 #include <dxgi1_4.h>
 #include <d3dcompiler.h>
 
+internal void Win32Panic(char *Fmt, ...);
+
 #include "d3d12_utils.h"
 
 #define BACKBUFFER_COUNT 2
@@ -20,6 +22,8 @@ struct engine
     IDXGISwapChain3 *SwapChain;
     
     descriptor_arena UAVArena;
+    
+    pso ClearPSO;
     
     b32 IsInitialized;
     

@@ -32,6 +32,8 @@ engine::UpdateAndRender(HWND Window)
         
         UAVArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         
+        ClearPSO = InitComputePSO(D, L"../code/clear.hlsl", "main");
+        
         IsInitialized = true;
     }
     

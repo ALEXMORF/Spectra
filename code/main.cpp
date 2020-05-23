@@ -1,8 +1,25 @@
 #include "sdf_engine.cpp"
 
+#include <stdio.h>
+#include "ShellScalingAPI.h"
 #include <windows.h>
 
 global bool gAppIsDone;
+
+internal void
+Win32Panic(char *Fmt, ...)
+{
+    va_list Args;
+    va_start(Args, Fmt);
+    
+    char Buf[256];
+    vsnprintf(Buf, sizeof(Buf), Fmt, Args);
+    va_end(Args);
+    
+    MessageBoxA(0, Buf, "Panic", MB_OK|MB_ICONERROR);
+    
+    ExitProcess(1);
+}
 
 LRESULT CALLBACK 
 Win32WindowCallback(HWND Window, UINT Message, 
@@ -33,6 +50,8 @@ WinMain(HINSTANCE Instance,
         LPSTR pCmdLine, 
         int nCmdShow)
 {
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    
     int WindowWidth = 1280;
     int WindowHeight = 720;
     
@@ -73,7 +92,7 @@ WinMain(HINSTANCE Instance,
     }
     else
     {
-        ASSERT(!"failed to register window class");
+        Win32Panic("Failed to register window class");
     }
     
     return 0;

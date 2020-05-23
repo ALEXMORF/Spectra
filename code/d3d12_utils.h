@@ -20,6 +20,16 @@ struct descriptor_arena
     descriptor PushDescriptor();
 };
 
+struct pso
+{
+    ID3D12PipelineState *Handle;
+    ID3D12RootSignature *RootSignature;
+};
+
+//
+//
+// swapchain
+
 internal IDXGISwapChain3 *
 CreateSwapChain(ID3D12CommandQueue *CmdQueue,
                 HWND Window,
@@ -54,6 +64,10 @@ CreateSwapChain(ID3D12CommandQueue *CmdQueue,
     
     return SwapChain;
 }
+
+//
+//
+// descriptors
 
 internal descriptor_arena
 InitDescriptorArena(ID3D12Device *D, int Count, 
@@ -93,4 +107,52 @@ descriptor_arena::PushDescriptor()
     Count += 1;
     
     return Descriptor;
+}
+
+//
+//
+// pipeline states
+
+internal pso
+InitComputePSO(ID3D12Device *D, LPCWSTR Filename, char *EntryPoint)
+{
+    pso PSO = {};
+    
+    ID3DBlob *CodeBlob; 
+    ID3DBlob *ErrorBlob;
+    if (FAILED(D3DCompileFromFile(Filename, 0, 0,
+                                  EntryPoint, "cs_5_0", 0, 0,
+                                  &CodeBlob, &ErrorBlob)))
+    {
+        char *ErrorMsg = (char *)ErrorBlob->GetBufferPointer();
+        Win32Panic("Shader compile error: %s", ErrorMsg);
+    }
+    
+    ID3D12RootSignatureDeserializer *RSExtractor = 0;
+    DXOP(D3D12CreateRootSignatureDeserializer(CodeBlob->GetBufferPointer(),
+                                              CodeBlob->GetBufferSize(), IID_PPV_ARGS(&RSExtractor)));
+    const D3D12_ROOT_SIGNATURE_DESC *RSDesc = RSExtractor->GetRootSignatureDesc();
+    
+    ID3DBlob *RSBlob = 0;
+    ID3DBlob *RSErrorBlob = 0;
+    if (FAILED(D3D12SerializeRootSignature(RSDesc, 
+                                           D3D_ROOT_SIGNATURE_VERSION_1,
+                                           &RSBlob, &RSErrorBlob)))
+    {
+        char *ErrorMsg = (char *)RSErrorBlob->GetBufferPointer();
+        Win32Panic("Root Signature serialization error: %s", ErrorMsg);
+    }
+    DXOP(D->CreateRootSignature(0, RSBlob->GetBufferPointer(),
+                                RSBlob->GetBufferSize(),
+                                IID_PPV_ARGS(&PSO.RootSignature)));
+    
+    D3D12_COMPUTE_PIPELINE_STATE_DESC PSODesc = {};
+    PSODesc.pRootSignature = PSO.RootSignature;
+    PSODesc.CS = {CodeBlob->GetBufferPointer(), CodeBlob->GetBufferSize()};
+    DXOP(D->CreateComputePipelineState(&PSODesc, IID_PPV_ARGS(&PSO.Handle)));
+    
+    RSBlob->Release();
+    CodeBlob->Release();
+    
+    return PSO;
 }
