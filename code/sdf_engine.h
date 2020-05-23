@@ -23,7 +23,7 @@ struct engine
     
     descriptor_arena UAVArena;
     
-    pso ClearPSO;
+    pso PathTracePSO;
     
     texture OutputTex;
     texture BackBufferTexs[BACKBUFFER_COUNT];

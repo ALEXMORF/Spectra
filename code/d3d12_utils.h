@@ -243,7 +243,7 @@ InitComputePSO(ID3D12Device *D, LPCWSTR Filename, char *EntryPoint)
     ID3DBlob *CodeBlob; 
     ID3DBlob *ErrorBlob;
     if (FAILED(D3DCompileFromFile(Filename, 0, 0,
-                                  EntryPoint, "cs_5_0", 0, 0,
+                                  EntryPoint, "cs_5_1", 0, 0,
                                   &CodeBlob, &ErrorBlob)))
     {
         char *ErrorMsg = (char *)ErrorBlob->GetBufferPointer();

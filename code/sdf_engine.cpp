@@ -26,7 +26,7 @@ engine::UpdateAndRender(HWND Window)
         
         UAVArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         
-        ClearPSO = InitComputePSO(D, L"../code/clear.hlsl", "main");
+        PathTracePSO = InitComputePSO(D, L"../code/pathtrace.hlsl", "main");
         
         OutputTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                   DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -45,11 +45,15 @@ engine::UpdateAndRender(HWND Window)
     
     int ThreadGroupCountX = (WIDTH-1)/32 + 1;
     int ThreadGroupCountY = (HEIGHT-1)/32 + 1;
+    int Width = WIDTH;
+    int Height = HEIGHT;
     
-    CmdList->SetPipelineState(ClearPSO.Handle);
-    CmdList->SetComputeRootSignature(ClearPSO.RootSignature);
+    CmdList->SetPipelineState(PathTracePSO.Handle);
+    CmdList->SetComputeRootSignature(PathTracePSO.RootSignature);
     CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
     CmdList->SetComputeRootDescriptorTable(0, OutputTex.UAV.GPUHandle);
+    CmdList->SetComputeRoot32BitConstants(1, 1, &Width, 0);
+    CmdList->SetComputeRoot32BitConstants(1, 1, &Height, 1);
     CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
     
     Context.UAVBarrier(&OutputTex);
