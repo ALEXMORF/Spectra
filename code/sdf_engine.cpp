@@ -36,5 +36,9 @@ engine::UpdateAndRender(HWND Window)
     }
     
     DXOP(CmdAllocator->Reset());
+    DXOP(CmdList->Reset(CmdAllocator, 0));
+    
     ASSERT(!"TODO(chen): Impl frame");
+    ASSERT(!"TODO(chen): Submit frame & wait");
+    ASSERT(!"TODO(chen): Present");
 }
