@@ -64,16 +64,34 @@ struct hit
     int MatId;
 };
 
+float2x2 Rotate2D(float theta)
+{
+    return float2x2(cos(theta), -sin(theta), sin(theta), cos(theta));
+}
+
+float Sculpture(float3 p)
+{
+    float amp = 1.0;
+    float freq = 2.0;
+    for (int i = 0; i < 3; ++i)
+    {
+        float s = i % 2 == 0? 1.0: -1.0;
+        p.xz = mul(p.xz, Rotate2D(s * (1.0 + 3.0*float(i))));
+        p += amp * sin(freq * p.zxy);
+        amp *= 0.5;
+        freq *= 2.1;
+    }
+    return 0.1 * (length(p) - 1.0);
+}
+
 query Map(float3 P)
 {
     query Q;
     
     float Floor = P.y;
-    float Sphere = length(P - float3(0, 1, 0)) - 1.0;
-    float RedLight = length(P - float3(-2.0, 0.5, 0)) - 0.8;
-    float GreenLight = length(P - float3(0, 3.5, 0)) - 0.8;
-    float BlueLight = length(P - float3(3.0, 3.5, 0)) - 0.8;
-    Q.Dist = min(min(min(min(Floor, Sphere), RedLight), GreenLight), BlueLight);
+    float Sphere = Sculpture(P - float3(0, 1, 0));
+    float Light = length(P - float3(0, 3.5, 0)) - 0.8;
+    Q.Dist = min(min(Floor, Sphere), Light);
     
     if (Q.Dist == Floor)
     {
@@ -83,17 +101,9 @@ query Map(float3 P)
     {
         Q.MatId = 1;
     }
-    else if (Q.Dist == RedLight)
+    else if (Q.Dist == Light)
     {
         Q.MatId = 2;
-    }
-    else if (Q.Dist == GreenLight)
-    {
-        Q.MatId = 3;
-    }
-    else if (Q.Dist == BlueLight)
-    {
-        Q.MatId = 4;
     }
     else
     {
@@ -114,23 +124,13 @@ material MapMaterial(int ObjId, float3 P)
     }
     else if (ObjId == 1) // sphere
     {
-        Mat.Albedo = float3(1.0, 0.5, 0.5);
+        Mat.Albedo = 1.0;
         Mat.Emission = 0.0;
     }
-    else if (ObjId == 2) // red light
-    {
-        Mat.Albedo = float3(1.0, 0, 0);
-        Mat.Emission = float3(0.0, 0, 0);
-    }
-    else if (ObjId == 3) // green light
+    else if (ObjId == 2) // light
     {
         Mat.Albedo = 1.0;
-        Mat.Emission = float3(10.0, 10.0, 10.0);
-    }
-    else if (ObjId == 4) // blue light
-    {
-        Mat.Albedo = float3(1.0, 0, 1.0);
-        Mat.Emission = float3(0, 0, 0.0);
+        Mat.Emission = 10.0;
     }
     else // invalid id
     {
@@ -164,7 +164,7 @@ hit RayTrace(float3 Ro, float3 Rd)
     for (Iter = 0; Iter < 256 && T < T_MAX; ++Iter)
     {
         query Q = Map(Ro + T*Rd);
-        if (Q.Dist < 0.01)
+        if (Q.Dist < 0.001)
         {
             MatId = Q.MatId;
             break;
@@ -228,6 +228,14 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     }
     
     float3 Col = Radiance;
-    float3 HistCol = OutputTex[ThreadId].rgb;
-    OutputTex[ThreadId] = float4(lerp(HistCol, Col, 0.01), 1.0);
+    
+    if (Context.FrameIndex != 0)
+    {
+        float3 HistCol = OutputTex[ThreadId].rgb;
+        OutputTex[ThreadId] = float4(lerp(HistCol, Col, 0.01), 1.0);
+    }
+    else
+    {
+        OutputTex[ThreadId] = float4(Col, 1.0);
+    }
 }
