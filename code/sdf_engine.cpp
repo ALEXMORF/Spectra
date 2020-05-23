@@ -27,6 +27,15 @@ engine::UpdateAndRender(HWND Window)
         UAVArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         
         PathTracePSO = InitComputePSO(D, L"../code/pathtrace.hlsl", "main");
+        ToneMapPSO = InitComputePSO(D, L"../code/tonemap.hlsl", "main");
+        
+        LightTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                 DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        LightTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(LightTex.Handle, 0, 0, 
+                                     LightTex.UAV.CPUHandle);
         
         OutputTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                   DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -51,10 +60,19 @@ engine::UpdateAndRender(HWND Window)
     CmdList->SetPipelineState(PathTracePSO.Handle);
     CmdList->SetComputeRootSignature(PathTracePSO.RootSignature);
     CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
-    CmdList->SetComputeRootDescriptorTable(0, OutputTex.UAV.GPUHandle);
+    CmdList->SetComputeRootDescriptorTable(0, LightTex.UAV.GPUHandle);
     CmdList->SetComputeRoot32BitConstants(1, 1, &Width, 0);
     CmdList->SetComputeRoot32BitConstants(1, 1, &Height, 1);
     CmdList->SetComputeRoot32BitConstants(1, 1, &FrameIndex, 2);
+    CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
+    
+    Context.UAVBarrier(&LightTex);
+    Context.FlushBarriers();
+    
+    CmdList->SetPipelineState(ToneMapPSO.Handle);
+    CmdList->SetComputeRootSignature(ToneMapPSO.RootSignature);
+    CmdList->SetComputeRootDescriptorTable(0, LightTex.UAV.GPUHandle);
+    CmdList->SetComputeRootDescriptorTable(1, OutputTex.UAV.GPUHandle);
     CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
     
     Context.UAVBarrier(&OutputTex);

@@ -24,7 +24,7 @@ float2 Rand2() {
 float3 SampleHemisphereCosineWeighted(float3 N)
 {
     float3 XAxis;
-    if (abs(N.y) > 0.9)
+    if (abs(N.y) > 0.99)
     {
         XAxis = normalize(cross(N, float3(0, 0, 1)));
     }
@@ -70,7 +70,7 @@ query Map(float3 P)
     
     float Floor = P.y;
     float Sphere = length(P - float3(0, 1, 0)) - 1.0;
-    float RedLight = length(P - float3(-3.0, 3.5, 0)) - 0.8;
+    float RedLight = length(P - float3(-2.0, 0.5, 0)) - 0.8;
     float GreenLight = length(P - float3(0, 3.5, 0)) - 0.8;
     float BlueLight = length(P - float3(3.0, 3.5, 0)) - 0.8;
     Q.Dist = min(min(min(min(Floor, Sphere), RedLight), GreenLight), BlueLight);
@@ -106,43 +106,40 @@ query Map(float3 P)
 material MapMaterial(int ObjId, float3 P)
 {
     material Mat;
+    
     if (ObjId == 0) // floor
     {
         Mat.Albedo = float3(0.5, 0.5, 0.3);
         Mat.Emission = 0.0;
-        return Mat;
     }
     else if (ObjId == 1) // sphere
     {
         Mat.Albedo = float3(1.0, 0.5, 0.5);
         Mat.Emission = 0.0;
-        return Mat;
     }
     else if (ObjId == 2) // red light
     {
-        Mat.Albedo = 1.0;
-        Mat.Emission = float3(100.0, 0, 0);
-        return Mat;
+        Mat.Albedo = float3(1.0, 0, 0);
+        Mat.Emission = float3(0.0, 0, 0);
     }
     else if (ObjId == 3) // green light
     {
         Mat.Albedo = 1.0;
-        Mat.Emission = float3(0, 100.0, 0);
-        return Mat;
+        Mat.Emission = float3(10.0, 10.0, 10.0);
     }
     else if (ObjId == 4) // blue light
     {
-        Mat.Albedo = 1.0;
-        Mat.Emission = float3(0, 0, 100.0);
-        return Mat;
+        Mat.Albedo = float3(1.0, 0, 1.0);
+        Mat.Emission = float3(0, 0, 0.0);
     }
     else // invalid id
     {
         // give it a disgusting purple
         Mat.Albedo = float3(1.0, 0.0, 1.0);
         Mat.Emission = 0.0;
-        return Mat;
     }
+    
+    return Mat;
 }
 
 float3 CalcGradient(float3 P)
@@ -181,9 +178,8 @@ hit RayTrace(float3 Ro, float3 Rd)
     return Hit;
 }
 
-float3 Tonemap(float3 Col, float Exposure)
+float3 Tonemap(float3 Col)
 {
-    Col *= Exposure;
     return Col / (1.0 + Col);
 }
 
@@ -205,9 +201,6 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     float3 CamY = cross(CamZ, CamX);
     float3 Rd = normalize(CamX * UV.x + CamY * UV.y + 1.7 * CamZ);
     
-    float Sun = 1.0;
-    float3 L = normalize(float3(-0.5, 0.3, -0.4));
-    
     int BounceCount = 4;
     
     float3 Radiance = 0.0;
@@ -222,7 +215,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
             material Mat = MapMaterial(Hit.MatId, HitP);
             
             Radiance += Attenuation * Mat.Emission;
-            float BRDF = clamp(dot(L, HitN), 0.0, 1.0)/Pi;
+            float3 BRDF = Mat.Albedo/Pi * clamp(dot(HitN, -Rd), 0.0, 1.0);
             Attenuation *= BRDF;
             
             Ro = HitP + 0.01*HitN;
@@ -235,10 +228,6 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     }
     
     float3 Col = Radiance;
-    
-    Col = Tonemap(Col, 1.0);
-    
-    Col = sqrt(Col);
     float3 HistCol = OutputTex[ThreadId].rgb;
-    OutputTex[ThreadId] = float4(lerp(HistCol, Col, 0.1), 1.0);
+    OutputTex[ThreadId] = float4(lerp(HistCol, Col, 0.01), 1.0);
 }
