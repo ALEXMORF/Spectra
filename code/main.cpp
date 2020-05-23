@@ -66,7 +66,7 @@ WinMain(HINSTANCE Instance,
                 DispatchMessage(&Message);
             }
             
-            EngineUpdateAndRender(&Engine, Window);
+            Engine.UpdateAndRender(Window);
             
             Sleep(2);
         }
