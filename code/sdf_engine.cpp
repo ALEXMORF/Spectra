@@ -38,6 +38,9 @@ engine::UpdateAndRender(HWND Window)
                                   DXGI_FORMAT_R8G8B8A8_UNORM,
                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        OutputTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(OutputTex.Handle, 0, 0, 
+                                     OutputTex.UAV.CPUHandle);
         
         IsInitialized = true;
     }
@@ -45,7 +48,15 @@ engine::UpdateAndRender(HWND Window)
     DXOP(CmdAllocator->Reset());
     DXOP(CmdList->Reset(CmdAllocator, 0));
     
-    ASSERT(!"TODO(chen): Impl frame");
+    int ThreadGroupCountX = (WIDTH-1)/32 + 1;
+    int ThreadGroupCountY = (HEIGHT-1)/32 + 1;
+    
+    CmdList->SetPipelineState(ClearPSO.Handle);
+    CmdList->SetComputeRootSignature(ClearPSO.RootSignature);
+    CmdList->SetComputeRootDescriptorTable(0, OutputTex.UAV.GPUHandle);
+    CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
+    
+    ASSERT(!"TODO(chen): Blit to backbuffer");
     ASSERT(!"TODO(chen): Submit frame & wait");
     ASSERT(!"TODO(chen): Present");
 }
