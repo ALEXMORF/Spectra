@@ -11,6 +11,8 @@ internal void Win32Panic(char *Fmt, ...);
 
 #include "d3d12_utils.h"
 
+#define WIDTH 1280
+#define HEIGHT 720
 #define BACKBUFFER_COUNT 2
 
 struct engine
@@ -24,6 +26,8 @@ struct engine
     descriptor_arena UAVArena;
     
     pso ClearPSO;
+    
+    texture OutputTex;
     
     b32 IsInitialized;
     

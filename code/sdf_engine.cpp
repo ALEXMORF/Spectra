@@ -34,6 +34,11 @@ engine::UpdateAndRender(HWND Window)
         
         ClearPSO = InitComputePSO(D, L"../code/clear.hlsl", "main");
         
+        OutputTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                  DXGI_FORMAT_R8G8B8A8_UNORM,
+                                  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        
         IsInitialized = true;
     }
     

@@ -26,6 +26,15 @@ struct pso
     ID3D12RootSignature *RootSignature;
 };
 
+struct texture
+{
+    ID3D12Resource *Handle;
+    
+    descriptor UAV;
+    descriptor SRV;
+    descriptor RTV;
+};
+
 //
 //
 // swapchain
@@ -155,4 +164,35 @@ InitComputePSO(ID3D12Device *D, LPCWSTR Filename, char *EntryPoint)
     CodeBlob->Release();
     
     return PSO;
+}
+
+//
+//
+// textures
+
+internal texture
+InitTexture2D(ID3D12Device *D, int Width, int Height, DXGI_FORMAT Format,
+              D3D12_RESOURCE_FLAGS Flags, D3D12_RESOURCE_STATES ResourceState)
+{
+    texture Tex = {};
+    
+    D3D12_HEAP_PROPERTIES HeapProps = {};
+    HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
+    HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    D3D12_RESOURCE_DESC ResourceDesc = {};
+    ResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+    ResourceDesc.Width = Width;
+    ResourceDesc.Height = Height;
+    ResourceDesc.DepthOrArraySize = 1;
+    ResourceDesc.MipLevels = 1;
+    ResourceDesc.Format = Format;
+    ResourceDesc.SampleDesc = {1, 0};
+    ResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+    ResourceDesc.Flags = Flags;
+    DXOP(D->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE,
+                                    &ResourceDesc, ResourceState, 0,
+                                    IID_PPV_ARGS(&Tex.Handle)));
+    
+    return Tex;
 }

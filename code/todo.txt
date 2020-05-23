@@ -1,5 +1,7 @@
 - create D3D device resources []
 -   debug layer [x]
 -   command context [x]
--   descriptor resources []
+-   descriptor resources [x]
+-   compute pso [x]
+-   texture [x]
 -   fence []

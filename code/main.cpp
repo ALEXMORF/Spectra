@@ -52,9 +52,6 @@ WinMain(HINSTANCE Instance,
 {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     
-    int WindowWidth = 1280;
-    int WindowHeight = 720;
-    
     WNDCLASSA WindowClass = {};
     WindowClass.style = CS_OWNDC;
     WindowClass.lpfnWndProc = Win32WindowCallback;
@@ -64,10 +61,24 @@ WinMain(HINSTANCE Instance,
     
     if (RegisterClassA(&WindowClass))
     {
-        HWND Window = CreateWindowExA(WS_EX_OVERLAPPEDWINDOW,
+        // first input client rect
+        RECT WindowRect = {};
+        WindowRect.left = 0;
+        WindowRect.top = 0;
+        WindowRect.right = WIDTH;
+        WindowRect.bottom = HEIGHT;
+        
+        DWORD WindowStyle = WS_OVERLAPPEDWINDOW|WS_VISIBLE;
+        
+        // adjust to window rect
+        AdjustWindowRect(&WindowRect, WindowStyle, 0);
+        int WindowWidth = WindowRect.right - WindowRect.left;
+        int WindowHeight = WindowRect.bottom - WindowRect.top;
+        
+        HWND Window = CreateWindowExA(0,
                                       WindowClass.lpszClassName,
                                       "SDF Engine",
-                                      WS_OVERLAPPEDWINDOW|WS_VISIBLE,
+                                      WindowStyle,
                                       CW_USEDEFAULT,
                                       CW_USEDEFAULT,
                                       WindowWidth,
