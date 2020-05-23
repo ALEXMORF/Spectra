@@ -28,6 +28,7 @@ struct engine
     texture OutputTex;
     texture BackBufferTexs[BACKBUFFER_COUNT];
     
+    int FrameIndex;
     b32 IsInitialized;
     
     void UpdateAndRender(HWND Window);

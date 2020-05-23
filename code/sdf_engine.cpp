@@ -54,6 +54,7 @@ engine::UpdateAndRender(HWND Window)
     CmdList->SetComputeRootDescriptorTable(0, OutputTex.UAV.GPUHandle);
     CmdList->SetComputeRoot32BitConstants(1, 1, &Width, 0);
     CmdList->SetComputeRoot32BitConstants(1, 1, &Height, 1);
+    CmdList->SetComputeRoot32BitConstants(1, 1, &FrameIndex, 2);
     CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
     
     Context.UAVBarrier(&OutputTex);
@@ -84,4 +85,6 @@ engine::UpdateAndRender(HWND Window)
     SwapChain->Present(1, 0);
     
     Context.WaitForGpu();
+    
+    FrameIndex += 1;
 }
