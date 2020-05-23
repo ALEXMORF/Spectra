@@ -40,11 +40,12 @@ engine::UpdateAndRender(HWND Window)
     }
     
     Context.Reset();
+    ID3D12GraphicsCommandList *CmdList = Context.CmdList;
+    ID3D12CommandQueue *CmdQueue = Context.CmdQueue;
     
     int ThreadGroupCountX = (WIDTH-1)/32 + 1;
     int ThreadGroupCountY = (HEIGHT-1)/32 + 1;
     
-    ID3D12GraphicsCommandList *CmdList = Context.CmdList;
     CmdList->SetPipelineState(ClearPSO.Handle);
     CmdList->SetComputeRootSignature(ClearPSO.RootSignature);
     CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
@@ -73,6 +74,10 @@ engine::UpdateAndRender(HWND Window)
     
     DXOP(CmdList->Close());
     
-    ASSERT(!"TODO(chen): Submit cmd buffer & wait");
-    ASSERT(!"TODO(chen): Present");
+    ID3D12CommandList *CmdLists[] = {CmdList};
+    CmdQueue->ExecuteCommandLists(1, CmdLists);
+    
+    SwapChain->Present(1, 0);
+    
+    Context.WaitForGpu();
 }

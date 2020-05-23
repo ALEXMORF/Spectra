@@ -41,11 +41,16 @@ struct gpu_context
     ID3D12CommandAllocator *CmdAllocator;
     ID3D12GraphicsCommandList *CmdList;
     ID3D12CommandQueue *CmdQueue;
+    ID3D12Fence *Fence;
+    HANDLE FenceEvent;
+    UINT64 FenceValue;
     
     D3D12_RESOURCE_BARRIER CachedBarriers[16];
     int CachedBarrierCount;
     
     void Reset();
+    void WaitForGpu();
+    
     void UAVBarrier(texture *Tex);
     void TransitionBarrier(texture *Tex, D3D12_RESOURCE_STATES NewState);
     void FlushBarriers();
@@ -76,6 +81,9 @@ InitGPUContext(ID3D12Device *D)
                               IID_PPV_ARGS(&Context.CmdList)));
     DXOP(Context.CmdList->Close());
     
+    DXOP(D->CreateFence(Context.FenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Context.Fence)));
+    Context.FenceEvent = CreateEventA(0, 0, FALSE, 0);
+    
     return Context;
 }
 
@@ -84,6 +92,18 @@ gpu_context::Reset()
 {
     DXOP(CmdAllocator->Reset());
     DXOP(CmdList->Reset(CmdAllocator, 0));
+}
+
+void 
+gpu_context::WaitForGpu()
+{
+    FenceValue += 1;
+    DXOP(CmdQueue->Signal(Fence, FenceValue));
+    if (Fence->GetCompletedValue() < FenceValue)
+    {
+        DXOP(Fence->SetEventOnCompletion(FenceValue, FenceEvent));
+        WaitForSingleObject(FenceEvent, INFINITE);
+    }
 }
 
 void 
