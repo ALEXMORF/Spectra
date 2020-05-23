@@ -66,7 +66,7 @@ WinMain(HINSTANCE Instance,
                 DispatchMessage(&Message);
             }
             
-            EngineUpdateAndRender(&Engine);
+            EngineUpdateAndRender(&Engine, Window);
             
             Sleep(2);
         }
