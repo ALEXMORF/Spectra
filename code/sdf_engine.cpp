@@ -1,7 +1,7 @@
 #include "sdf_engine.h"
 
 void
-engine::UpdateAndRender(HWND Window)
+engine::UpdateAndRender(HWND Window, input *Input)
 {
     if (!IsInitialized)
     {
@@ -45,8 +45,34 @@ engine::UpdateAndRender(HWND Window)
         D->CreateUnorderedAccessView(OutputTex.Handle, 0, 0, 
                                      OutputTex.UAV.CPUHandle);
         
+        Camera.P = {0.0f, 1.2f, -4.0f};
+        Camera.Orientation = Quaternion();
+        
         IsInitialized = true;
     }
+    
+    // camera orientation
+    if (Input->MouseDown)
+    {
+        v2 MousedP = {f32(Input->MousedP.X) / f32(WIDTH), f32(Input->MousedP.Y) / f32(HEIGHT)};
+        quaternion XRot = Quaternion(YAxis(), MousedP.X * Pi32);
+        Camera.Orientation = XRot * Camera.Orientation;
+        
+        v3 LocalXAxis = Rotate(XAxis(), Camera.Orientation);
+        quaternion YRot = Quaternion(LocalXAxis, MousedP.Y * Pi32);
+        Camera.Orientation = YRot * Camera.Orientation;
+    }
+    
+    // camera translation
+    v3 dP = {};
+    if (Input->Keys['W']) dP.Z += 1.0f;
+    if (Input->Keys['S']) dP.Z -= 1.0f;
+    if (Input->Keys['A']) dP.X -= 1.0f;
+    if (Input->Keys['D']) dP.X += 1.0f;
+    dP = Normalize(dP);
+    dP = Rotate(dP, Camera.Orientation);
+    f32 Speed = 0.1f;
+    Camera.P += Speed * dP;
     
     Context.Reset();
     ID3D12GraphicsCommandList *CmdList = Context.CmdList;
@@ -57,6 +83,9 @@ engine::UpdateAndRender(HWND Window)
     int Width = WIDTH;
     int Height = HEIGHT;
     
+    v3 CamOffset = Rotate(ZAxis(), Camera.Orientation);
+    v3 CamAt = Camera.P + CamOffset;
+    
     CmdList->SetPipelineState(PathTracePSO.Handle);
     CmdList->SetComputeRootSignature(PathTracePSO.RootSignature);
     CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
@@ -64,6 +93,8 @@ engine::UpdateAndRender(HWND Window)
     CmdList->SetComputeRoot32BitConstants(1, 1, &Width, 0);
     CmdList->SetComputeRoot32BitConstants(1, 1, &Height, 1);
     CmdList->SetComputeRoot32BitConstants(1, 1, &FrameIndex, 2);
+    CmdList->SetComputeRoot32BitConstants(1, 3, &Camera.P, 4);
+    CmdList->SetComputeRoot32BitConstants(1, 3, &CamAt, 8);
     CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
     
     Context.UAVBarrier(&LightTex);

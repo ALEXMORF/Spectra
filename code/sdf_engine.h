@@ -10,10 +10,27 @@
 internal void Win32Panic(char *Fmt, ...);
 
 #include "d3d12_utils.h"
+#include "ch_math.h"
 
 #define WIDTH 1280
 #define HEIGHT 720
 #define BACKBUFFER_COUNT 2
+
+struct input
+{
+    int Keys[256];
+    b32 MouseDown;
+    v2i MouseP;
+    v2i MousedP;
+    
+    b32 MouseDataIsInitialized;
+};
+
+struct camera
+{
+    v3 P;
+    quaternion Orientation;
+};
 
 struct engine
 {
@@ -30,8 +47,10 @@ struct engine
     texture OutputTex;
     texture BackBufferTexs[BACKBUFFER_COUNT];
     
+    camera Camera;
+    
     int FrameIndex;
     b32 IsInitialized;
     
-    void UpdateAndRender(HWND Window);
+    void UpdateAndRender(HWND Window, input *Input);
 };

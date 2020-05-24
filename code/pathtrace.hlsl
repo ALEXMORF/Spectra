@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), RootConstants(num32BitConstants=3, b0)"
+#define RS "DescriptorTable(UAV(u0)), RootConstants(num32BitConstants=12, b0)"
 
 RWTexture2D<float4> OutputTex: register(u0);
 
@@ -7,6 +7,12 @@ struct context
     int Width;
     int Height;
     int FrameIndex;
+    uint Pad1;
+    
+    float3 Ro;
+    uint Pad2;
+    float3 At;
+    uint Pad3;
 };
 
 ConstantBuffer<context> Context: register(b0);
@@ -189,8 +195,8 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     
     gSeed = UV * (float(Context.FrameIndex)+1.0);
     
-    float3 Ro = float3(0, 1.2, -4);
-    float3 At = float3(0, 1, 0);
+    float3 Ro = Context.Ro;
+    float3 At = Context.At;
     float3 CamZ = normalize(At - Ro);
     float3 CamX = normalize(cross(float3(0, 1, 0), CamZ));
     float3 CamY = cross(CamZ, CamX);
@@ -232,7 +238,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     if (Context.FrameIndex != 0)
     {
         float3 HistCol = OutputTex[ThreadId].rgb;
-        OutputTex[ThreadId] = float4(lerp(HistCol, Col, 0.2), 1.0);
+        OutputTex[ThreadId] = float4(lerp(HistCol, Col, 1.0), 1.0);
     }
     else
     {

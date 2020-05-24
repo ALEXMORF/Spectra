@@ -6,6 +6,11 @@
 -   texture [x]
 -   fence [x]
 
-- dynamic camera []
+- dynamic camera [x]
+-   input handling [x]
+-   import math code [x]
+-   camera control [x]
+
 - denoiser []
+
 - shader hotload []

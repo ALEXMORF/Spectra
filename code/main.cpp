@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "ShellScalingAPI.h"
 #include <windows.h>
+#include <windowsx.h>
 
 global bool gAppIsDone;
 
@@ -21,6 +22,8 @@ Win32Panic(char *Fmt, ...)
     ExitProcess(1);
 }
 
+global input gInput;
+
 LRESULT CALLBACK 
 Win32WindowCallback(HWND Window, UINT Message, 
                     WPARAM WParam, LPARAM LParam)
@@ -33,6 +36,61 @@ Win32WindowCallback(HWND Window, UINT Message,
         case WM_QUIT:
         {
             gAppIsDone = true;
+        } break;
+        
+        case WM_KEYDOWN:
+        case WM_SYSKEYDOWN:
+        case WM_KEYUP:
+        case WM_SYSKEYUP:
+        {
+            b32 KeyIsDown = (LParam & (1 << 31)) == 0;
+            b32 KeyWasDown = (LParam & (1 << 30)) != 0;
+            b32 AltIsDown = (LParam & (1 << 29)) != 0;
+            
+            if (KeyIsDown != KeyWasDown)
+            {
+                gInput.Keys[WParam] = KeyIsDown;
+                
+                if (KeyIsDown)
+                {
+                    if (WParam == VK_ESCAPE)
+                    {
+                        gAppIsDone = true;
+                    }
+                    
+                    if (AltIsDown && WParam == VK_F4)
+                    {
+                        gAppIsDone = true;
+                    }
+                }
+            }
+        } break;
+        
+        case WM_MOUSEMOVE:
+        {
+            v2i OldMouseP = gInput.MouseP;
+            
+            gInput.MouseP.X = GET_X_LPARAM(LParam);
+            gInput.MouseP.Y = GET_Y_LPARAM(LParam); 
+            
+            if (gInput.MouseDataIsInitialized)
+            {
+                gInput.MousedP = gInput.MouseP - OldMouseP;
+            }
+            else
+            {
+                gInput.MouseDataIsInitialized = true;
+            }
+        } break;
+        
+        case WM_LBUTTONDOWN:
+        {
+            gInput.MouseDown = true;
+        } break;
+        
+        case WM_LBUTTONUP:
+        {
+            gInput.MouseDown = false;
         } break;
         
         default:
@@ -89,6 +147,8 @@ WinMain(HINSTANCE Instance,
         
         while (!gAppIsDone)
         {
+            gInput.MousedP = {};
+            
             MSG Message;
             while (PeekMessageA(&Message, 0, 0, 0, PM_REMOVE))
             {
@@ -96,7 +156,7 @@ WinMain(HINSTANCE Instance,
                 DispatchMessage(&Message);
             }
             
-            Engine.UpdateAndRender(Window);
+            Engine.UpdateAndRender(Window, &gInput);
             
             Sleep(2);
         }
