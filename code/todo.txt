@@ -19,9 +19,11 @@
 -   backproj rectification [x]
 -   bilinear filter backproj [x]
 -   variance-guidance [x]
+-   fallback strategy for disocclusion regions []
 -   feedback first-level wavelet to temporal filter []
 -   optimize spatial filter []
 
+- apply back first-hit BRDF []
 
 - AA []
 
