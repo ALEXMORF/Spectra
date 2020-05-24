@@ -1,6 +1,7 @@
 #define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), RootConstants(num32BitConstants=5, b0)"
 
 #include "math.hlsl"
+#include "edge_avoiding_functions.hlsl"
 
 RWTexture2D<float4> InputTex: register(u0);
 RWTexture2D<float4> OutputTex: register(u1);
@@ -19,26 +20,6 @@ struct context
 };
 
 ConstantBuffer<context> Context: register(b0);
-
-float DepthWeight(float CenterDepth, float SampleDepth)
-{
-    return abs(1.0 - CenterDepth/SampleDepth) < 0.1? 1.0: 0.0;
-}
-
-float NormalWeight(float3 CenterNormal, float3 SampleNormal)
-{
-    return pow(max(0.0, dot(CenterNormal, SampleNormal)), 32.0);
-}
-
-float LumWeight(float4 CenterCol, float4 SampleCol, float StdDeviation)
-{
-    float CenterLum = CalcLuminance(CenterCol.rgb);
-    float SampleLum = CalcLuminance(SampleCol.rgb);
-    
-    float Epsilon = 0.000001;
-    float Alpha = 4.0;
-    return exp(-abs(CenterLum - SampleLum) / (Alpha*StdDeviation + Epsilon));
-}
 
 float FetchFilteredStdDeviation(int2 ThreadId)
 {

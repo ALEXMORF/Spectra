@@ -239,6 +239,11 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
         CmdList->SetComputeRootDescriptorTable(0, LumMomentTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, VarianceTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(2, IntegratedLightTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(3, PositionTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(4, NormalTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(5, 3, &Camera.P, 0);
+        
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&VarianceTex);

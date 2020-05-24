@@ -53,8 +53,9 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         float2 Interp = frac(HistPixelId);
         int2 PixelCoord = floor(HistPixelId);
         
+        float MinSampleCount = 10e31;
         float2 LumMomentHist = 0;
-        float4 FilteredHist = 0;
+        float3 FilteredHist = 0;
         float TotalContrib = 0;
         for (int dY = 0; dY <= 1; ++dY)
         {
@@ -70,9 +71,12 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
                 {
                     float2 Bilinear = lerp(1.0-Interp, Interp, float2(dX, dY));
                     float W = Bilinear.x * Bilinear.y;
-                    FilteredHist += W *LightHistTex[TapCoord];
+                    FilteredHist += W * LightHistTex[TapCoord].rgb;
                     LumMomentHist += W *LumMomentHistTex[TapCoord];
                     TotalContrib += W;
+                    
+                    float TapSampleCount = LightHistTex[TapCoord].a;
+                    MinSampleCount = min(MinSampleCount, TapSampleCount);
                 }
             }
         }
@@ -83,18 +87,25 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
             LumMomentHist /= TotalContrib;
             
             float Alpha = 0.1;
-            FilteredTex[ThreadId] = lerp(FilteredHist, InputTex[ThreadId], Alpha);
+            
+            float3 FilteredCol = lerp(FilteredHist.rgb, InputTex[ThreadId].rgb, Alpha);
+            
+            float EffectiveSampleCount = MinSampleCount + 1;
+            FilteredTex[ThreadId] = float4(FilteredCol, EffectiveSampleCount);
+            
             LumMomentTex[ThreadId] = lerp(LumMomentHist, LumMoments, Alpha);
         }
         else
         {
-            FilteredTex[ThreadId] = InputTex[ThreadId];
+            float SampleCount = 1;
+            FilteredTex[ThreadId] = float4(InputTex[ThreadId].rgb, SampleCount);
             LumMomentTex[ThreadId] = LumMoments;
         }
     }
     else
     {
-        FilteredTex[ThreadId] = InputTex[ThreadId];
+        float SampleCount = 1;
+        FilteredTex[ThreadId] = float4(InputTex[ThreadId].rgb, SampleCount);
         LumMomentTex[ThreadId] = LumMoments;
     }
 }

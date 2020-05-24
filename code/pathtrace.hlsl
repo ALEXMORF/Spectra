@@ -138,9 +138,16 @@ material MapMaterial(int ObjId, float3 P)
     else if (ObjId == 2) // Light
     {
         Mat.Albedo = 1.0;
+#if 1
         float K = 0.0;
-        if (P.y > 5.0 && P.y < 10.0) K = 3.0;
-        Mat.Emission = K * float3(frac(0.001*P.y), 1.0, frac(0.001*P.z));
+        if (P.y > 5.0 && P.y < 10.0 && abs(P.z) < 20.0) K = 3.0;
+        Mat.Emission = K * float3(frac(0.0001*P.y), 1.0, frac(0.001*P.z));
+#else
+        float K = 0.0;
+        P.y -= 10.0;
+        if (length(P.yz) < 5.0) K = 10.0;
+        Mat.Emission = K;
+#endif
     }
     else // invalid id
     {
