@@ -34,9 +34,9 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     
     float4 Filtered = 0.0;
     float TotalContrib = 0.0;
-    for (int dY = -1; dY <= 1; ++dY)
+    for (int dY = -2; dY <= 2; ++dY)
     {
-        for (int dX = -1; dX <= 1; ++dX)
+        for (int dX = -2; dX <= 2; ++dX)
         {
             int2 Coord = int2(ThreadId) + Context.Stride * int2(dX, dY);
             float4 Tap = InputBuffer[Coord];

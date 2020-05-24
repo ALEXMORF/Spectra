@@ -12,9 +12,11 @@
 -   camera control [x]
 
 - denoiser []
--   output depth []
--   temporal filter []
--   spatial filter []
+-   output aux buffer [x]
+-   temporal filter [x]
+-   spatial filter [x]
+-   temporal reprojection []
+-   variance-guidance []
 
 - AA []
 

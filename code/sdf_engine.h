@@ -51,6 +51,8 @@ struct engine
     texture NormalTex;
     
     // denoise data
+    texture PositionHistTex;
+    texture NormalHistTex;
     texture LightHistTex;
     texture IntegratedLightTex;
     texture TempTex;
@@ -59,6 +61,7 @@ struct engine
     texture BackBufferTexs[BACKBUFFER_COUNT];
     
     camera Camera;
+    camera PrevCamera;
     
     int FrameIndex;
     b32 IsInitialized;

@@ -55,6 +55,22 @@ engine::UpdateAndRender(HWND Window, input *Input)
         D->CreateUnorderedAccessView(NormalTex.Handle, 0, 0, 
                                      NormalTex.UAV.CPUHandle);
         
+        PositionHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                        DXGI_FORMAT_R32G32B32A32_FLOAT,
+                                        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        PositionHistTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(PositionHistTex.Handle, 0, 0, 
+                                     PositionHistTex.UAV.CPUHandle);
+        
+        NormalHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                      DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                      D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        NormalHistTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(NormalHistTex.Handle, 0, 0, 
+                                     NormalHistTex.UAV.CPUHandle);
+        
         LightHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                      DXGI_FORMAT_R16G16B16A16_FLOAT,
                                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
@@ -144,6 +160,8 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&LightTex);
+        Context.UAVBarrier(&PositionTex);
+        Context.UAVBarrier(&NormalTex);
         Context.FlushBarriers();
     }
     
@@ -155,25 +173,17 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->SetComputeRootDescriptorTable(0, LightTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, LightHistTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, IntegratedLightTex.UAV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(3, 1, &FrameIndex, 0);
+        CmdList->SetComputeRootDescriptorTable(3, PositionTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(4, NormalTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &FrameIndex, 0);
+        CmdList->SetComputeRoot32BitConstants(5, 3, &PrevCamera.P, 1);
+        CmdList->SetComputeRoot32BitConstants(5, 4, &PrevCamera.Orientation, 4);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&IntegratedLightTex);
         Context.FlushBarriers();
         
-        Context.TransitionBarrier(&IntegratedLightTex, 
-                                  D3D12_RESOURCE_STATE_COPY_SOURCE);
-        Context.TransitionBarrier(&LightHistTex, 
-                                  D3D12_RESOURCE_STATE_COPY_DEST);
-        Context.FlushBarriers();
-        
-        CmdList->CopyResource(LightHistTex.Handle, IntegratedLightTex.Handle);
-        
-        Context.TransitionBarrier(&IntegratedLightTex, 
-                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        Context.TransitionBarrier(&LightHistTex, 
-                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        Context.FlushBarriers();
+        Context.CopyResourceBarriered(&LightHistTex, &IntegratedLightTex);
     }
     
     // spatial filter
@@ -221,20 +231,7 @@ engine::UpdateAndRender(HWND Window, input *Input)
     
     UINT BackBufferIndex = SwapChain->GetCurrentBackBufferIndex();
     texture *BackBufferTex = BackBufferTexs + BackBufferIndex;
-    
-    Context.TransitionBarrier(&OutputTex, 
-                              D3D12_RESOURCE_STATE_COPY_SOURCE);
-    Context.TransitionBarrier(BackBufferTex, 
-                              D3D12_RESOURCE_STATE_COPY_DEST);
-    Context.FlushBarriers();
-    
-    CmdList->CopyResource(BackBufferTex->Handle, OutputTex.Handle);
-    
-    Context.TransitionBarrier(&OutputTex, 
-                              D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-    Context.TransitionBarrier(BackBufferTex, 
-                              D3D12_RESOURCE_STATE_PRESENT);
-    Context.FlushBarriers();
+    Context.CopyResourceBarriered(BackBufferTex, &OutputTex);
     
     DXOP(CmdList->Close());
     
@@ -246,4 +243,5 @@ engine::UpdateAndRender(HWND Window, input *Input)
     Context.WaitForGpu();
     
     FrameIndex += 1;
+    PrevCamera = Camera;
 }

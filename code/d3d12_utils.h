@@ -54,6 +54,7 @@ struct gpu_context
     void UAVBarrier(texture *Tex);
     void TransitionBarrier(texture *Tex, D3D12_RESOURCE_STATES NewState);
     void FlushBarriers();
+    void CopyResourceBarriered(texture *Dest, texture *Source);
     
     void _PushToBarrierCache(D3D12_RESOURCE_BARRIER Barrier);
 };
@@ -146,6 +147,22 @@ gpu_context::FlushBarriers()
 {
     CmdList->ResourceBarrier(CachedBarrierCount, CachedBarriers);
     CachedBarrierCount = 0;
+}
+
+void
+gpu_context::CopyResourceBarriered(texture *Dest, texture *Source)
+{
+    D3D12_RESOURCE_STATES SourceState = Source->ResourceState;
+    D3D12_RESOURCE_STATES DestState = Dest->ResourceState;
+    TransitionBarrier(Source, D3D12_RESOURCE_STATE_COPY_SOURCE);
+    TransitionBarrier(Dest, D3D12_RESOURCE_STATE_COPY_DEST);
+    FlushBarriers();
+    
+    CmdList->CopyResource(Dest->Handle, Source->Handle);
+    
+    TransitionBarrier(Source, SourceState);
+    TransitionBarrier(Dest, DestState);
+    FlushBarriers();
 }
 
 //
