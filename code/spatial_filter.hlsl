@@ -40,6 +40,28 @@ float LumWeight(float4 CenterCol, float4 SampleCol, float StdDeviation)
     return exp(-abs(CenterLum - SampleLum) / (Alpha*StdDeviation + Epsilon));
 }
 
+float FetchFilteredStdDeviation(int2 ThreadId)
+{
+    const float Gaussians[2] = {0.44198, 0.27901};
+    
+    float FilteredVariance = 0;
+    float TotalContrib = 0;
+    
+    for (int dY = -1; dY <= 1; ++dY)
+    {
+        for (int dX = -1; dX <= 1; ++dX)
+        {
+            float W = Gaussians[abs(dX)]*Gaussians[abs(dY)];
+            FilteredVariance += W * VarianceTex[ThreadId + int2(dX, dY)];
+            TotalContrib += W;
+        }
+    }
+    
+    FilteredVariance /= TotalContrib;
+    float FilteredStdDeviation = sqrt(FilteredVariance);
+    return FilteredStdDeviation;
+}
+
 [RootSignature(RS)]
 [numthreads(32, 32, 1)]
 void main(uint2 ThreadId: SV_DispatchThreadID)
@@ -47,7 +69,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     float4 CenterCol = InputTex[ThreadId];
     float CenterDepth = length(Context.CamP - PositionTex[ThreadId].xyz);
     float3 CenterNormal = NormalTex[ThreadId].xyz;
-    float StdDeviation = sqrt(VarianceTex[ThreadId]);
+    float StdDeviation = FetchFilteredStdDeviation(ThreadId);
     
     const float Kernel[3] = {3.0/8.0, 1.0/4.0, 1/16.0};
     
