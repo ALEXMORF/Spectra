@@ -18,8 +18,10 @@
 -   backproj [x]
 -   backproj rectification [x]
 -   bilinear filter backproj [x]
+-   variance-guidance [x]
+-   feedback first-level wavelet to temporal filter []
 -   optimize spatial filter []
--   variance-guidance []
+
 
 - AA []
 

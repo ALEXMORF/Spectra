@@ -1,10 +1,15 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), RootConstants(num32BitConstants=5, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), RootConstants(num32BitConstants=5, b0)"
 
-RWTexture2D<float4> InputBuffer: register(u0);
-RWTexture2D<float4> OutputBuffer: register(u1);
+#include "math.hlsl"
 
-RWTexture2D<float4> PositionBuffer: register(u2);
-RWTexture2D<float4> NormalBuffer: register(u3);
+RWTexture2D<float4> InputTex: register(u0);
+RWTexture2D<float4> OutputTex: register(u1);
+
+RWTexture2D<float4> PositionTex: register(u2);
+RWTexture2D<float4> NormalTex: register(u3);
+
+RWTexture2D<float> VarianceTex: register(u4);
+RWTexture2D<float> NextVarianceTex: register(u5);
 
 struct context
 {
@@ -25,15 +30,28 @@ float NormalWeight(float3 CenterNormal, float3 SampleNormal)
     return pow(max(0.0, dot(CenterNormal, SampleNormal)), 32.0);
 }
 
+float LumWeight(float4 CenterCol, float4 SampleCol, float StdDeviation)
+{
+    float CenterLum = CalcLuminance(CenterCol.rgb);
+    float SampleLum = CalcLuminance(SampleCol.rgb);
+    
+    float Epsilon = 0.000001;
+    float Alpha = 4.0;
+    return exp(-abs(CenterLum - SampleLum) / (Alpha*StdDeviation + Epsilon));
+}
+
 [RootSignature(RS)]
 [numthreads(32, 32, 1)]
 void main(uint2 ThreadId: SV_DispatchThreadID)
 {
-    float CenterDepth = length(Context.CamP - PositionBuffer[ThreadId].xyz);
-    float3 CenterNormal = NormalBuffer[ThreadId].xyz;
+    float4 CenterCol = InputTex[ThreadId];
+    float CenterDepth = length(Context.CamP - PositionTex[ThreadId].xyz);
+    float3 CenterNormal = NormalTex[ThreadId].xyz;
+    float StdDeviation = sqrt(VarianceTex[ThreadId]);
     
     const float Kernel[3] = {3.0/8.0, 1.0/4.0, 1/16.0};
     
+    float FilteredVariance = 0.0;
     float4 Filtered = 0.0;
     float TotalContrib = 0.0;
     for (int dY = -1; dY <= 1; ++dY)
@@ -41,15 +59,17 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         for (int dX = -1; dX <= 1; ++dX)
         {
             int2 Coord = int2(ThreadId) + Context.Stride * int2(dX, dY);
-            float4 Tap = InputBuffer[Coord];
+            float4 Tap = InputTex[Coord];
             
             float W = Kernel[abs(dX)]*Kernel[abs(dY)];
-            float TapDepth = length(Context.CamP - PositionBuffer[Coord].xyz);
-            float3 TapNormal = NormalBuffer[Coord].xyz;
+            float TapDepth = length(Context.CamP - PositionTex[Coord].xyz);
+            float3 TapNormal = NormalTex[Coord].xyz;
             W *= DepthWeight(CenterDepth, TapDepth);
             W *= NormalWeight(CenterNormal, TapNormal);
+            W *= LumWeight(CenterCol, Tap, StdDeviation);
             
             Filtered += W * Tap;
+            FilteredVariance += W*W * VarianceTex[Coord];
             TotalContrib += W;
         }
     }
@@ -57,7 +77,9 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     if (TotalContrib > 0.0)
     {
         Filtered /= TotalContrib;
+        FilteredVariance /= TotalContrib*TotalContrib;
     }
     
-    OutputBuffer[ThreadId] = Filtered;
+    OutputTex[ThreadId] = Filtered;
+    NextVarianceTex[ThreadId] = FilteredVariance;
 }

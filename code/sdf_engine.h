@@ -42,6 +42,7 @@ struct engine
     
     pso PathTracePSO;
     pso TemporalFilterPSO;
+    pso CalcVariancePSO;
     pso SpatialFilterPSO;
     pso ToneMapPSO;
     
@@ -54,6 +55,10 @@ struct engine
     texture PositionHistTex;
     texture NormalHistTex;
     texture LightHistTex;
+    texture LumMomentTex;
+    texture LumMomentHistTex;
+    texture VarianceTex;
+    texture NextVarianceTex;
     texture IntegratedLightTex;
     texture TempTex;
     

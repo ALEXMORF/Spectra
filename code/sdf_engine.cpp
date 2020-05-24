@@ -28,6 +28,7 @@ engine::UpdateAndRender(HWND Window, input *Input)
         
         PathTracePSO = InitComputePSO(D, L"../code/pathtrace.hlsl", "main");
         TemporalFilterPSO = InitComputePSO(D, L"../code/temporal_filter.hlsl", "main");
+        CalcVariancePSO = InitComputePSO(D, L"../code/calc_variance.hlsl", "main");
         SpatialFilterPSO = InitComputePSO(D, L"../code/spatial_filter.hlsl", "main");
         ToneMapPSO = InitComputePSO(D, L"../code/tonemap.hlsl", "main");
         
@@ -78,6 +79,38 @@ engine::UpdateAndRender(HWND Window, input *Input)
         LightHistTex.UAV = UAVArena.PushDescriptor();
         D->CreateUnorderedAccessView(LightHistTex.Handle, 0, 0, 
                                      LightHistTex.UAV.CPUHandle);
+        
+        LumMomentTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                     DXGI_FORMAT_R16G16_FLOAT,
+                                     D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        LumMomentTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(LumMomentTex.Handle, 0, 0, 
+                                     LumMomentTex.UAV.CPUHandle);
+        
+        LumMomentHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                         DXGI_FORMAT_R16G16_FLOAT,
+                                         D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                         D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        LumMomentHistTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(LumMomentHistTex.Handle, 0, 0, 
+                                     LumMomentHistTex.UAV.CPUHandle);
+        
+        VarianceTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                    DXGI_FORMAT_R32_FLOAT,
+                                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        VarianceTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(VarianceTex.Handle, 0, 0, 
+                                     VarianceTex.UAV.CPUHandle);
+        
+        NextVarianceTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                        DXGI_FORMAT_R32_FLOAT,
+                                        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        NextVarianceTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(NextVarianceTex.Handle, 0, 0, 
+                                     NextVarianceTex.UAV.CPUHandle);
         
         IntegratedLightTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                            DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -179,20 +212,37 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->SetComputeRootDescriptorTable(4, NormalTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(5, PositionHistTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(6, NormalHistTex.UAV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(7, 1, &FrameIndex, 0);
-        CmdList->SetComputeRoot32BitConstants(7, 3, &PrevCamera.P, 1);
-        CmdList->SetComputeRoot32BitConstants(7, 4, &PrevCameraInvOrientation, 4);
-        CmdList->SetComputeRoot32BitConstants(7, 3, &Camera.P, 8);
-        CmdList->SetComputeRoot32BitConstants(7, 1, &Width, 12);
-        CmdList->SetComputeRoot32BitConstants(7, 1, &Height, 13);
+        CmdList->SetComputeRootDescriptorTable(7, LumMomentHistTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(8, LumMomentTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(9, 1, &FrameIndex, 0);
+        CmdList->SetComputeRoot32BitConstants(9, 3, &PrevCamera.P, 1);
+        CmdList->SetComputeRoot32BitConstants(9, 4, &PrevCameraInvOrientation, 4);
+        CmdList->SetComputeRoot32BitConstants(9, 3, &Camera.P, 8);
+        CmdList->SetComputeRoot32BitConstants(9, 1, &Width, 12);
+        CmdList->SetComputeRoot32BitConstants(9, 1, &Height, 13);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&IntegratedLightTex);
+        Context.UAVBarrier(&LumMomentTex);
         Context.FlushBarriers();
         
         Context.CopyResourceBarriered(&LightHistTex, &IntegratedLightTex);
+        Context.CopyResourceBarriered(&LumMomentHistTex, &LumMomentTex);
         Context.CopyResourceBarriered(&PositionHistTex, &PositionTex);
         Context.CopyResourceBarriered(&NormalHistTex, &NormalTex);
+    }
+    
+    // calc variance
+    {
+        CmdList->SetPipelineState(CalcVariancePSO.Handle);
+        CmdList->SetComputeRootSignature(CalcVariancePSO.RootSignature);
+        CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
+        CmdList->SetComputeRootDescriptorTable(0, LumMomentTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(1, VarianceTex.UAV.GPUHandle);
+        CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
+        
+        Context.UAVBarrier(&VarianceTex);
+        Context.FlushBarriers();
     }
     
     // spatial filter
@@ -202,6 +252,7 @@ engine::UpdateAndRender(HWND Window, input *Input)
         ASSERT(Iterations % 2 == 0); 
         
         texture *PingPongs[2] = {&IntegratedLightTex, &TempTex};
+        texture *Variances[2] = {&VarianceTex, &NextVarianceTex};
         
         for (int Depth = 0; Depth < Iterations; ++Depth)
         {
@@ -214,18 +265,26 @@ engine::UpdateAndRender(HWND Window, input *Input)
             CmdList->SetComputeRootDescriptorTable(1, PingPongs[1]->UAV.GPUHandle);
             CmdList->SetComputeRootDescriptorTable(2, PositionTex.UAV.GPUHandle);
             CmdList->SetComputeRootDescriptorTable(3, NormalTex.UAV.GPUHandle);
-            CmdList->SetComputeRoot32BitConstants(4, 3, &Camera.P, 0);
-            CmdList->SetComputeRoot32BitConstants(4, 1, &Depth, 3);
-            CmdList->SetComputeRoot32BitConstants(4, 1, &FilterStride, 4);
+            CmdList->SetComputeRootDescriptorTable(4, Variances[0]->UAV.GPUHandle);
+            CmdList->SetComputeRootDescriptorTable(5, Variances[1]->UAV.GPUHandle);
+            CmdList->SetComputeRoot32BitConstants(6, 3, &Camera.P, 0);
+            CmdList->SetComputeRoot32BitConstants(6, 1, &Depth, 3);
+            CmdList->SetComputeRoot32BitConstants(6, 1, &FilterStride, 4);
             CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
             
             Context.UAVBarrier(PingPongs[1]);
+            Context.UAVBarrier(Variances[1]);
             Context.FlushBarriers();
             
             // swap
             texture *Temp = PingPongs[1];
             PingPongs[1] = PingPongs[0];
             PingPongs[0] = Temp;
+            
+            // swap
+            texture *VarTemp = Variances[1];
+            Variances[1] = Variances[0];
+            Variances[0] = VarTemp;
         }
     }
     

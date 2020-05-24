@@ -1,3 +1,5 @@
+#pragma once
+
 float4 quat(in float3 axis, in float angle)
 {
     return float4(axis * sin(angle/2.0), cos(angle/2.0));
