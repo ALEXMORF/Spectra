@@ -20,8 +20,8 @@
 -   bilinear filter backproj [x]
 -   variance-guidance [x]
 -   fallback strategy for disocclusion regions [x]
+-   feedback first-level wavelet to temporal filter [x]
 -   better depth weight []
--   feedback first-level wavelet to temporal filter []
 -   optimize spatial filter []
 
 - apply back first-hit BRDF []

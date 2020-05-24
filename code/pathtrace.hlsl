@@ -98,7 +98,8 @@ query Map(float3 P)
     
     float Floor = P.y;
     float Sculpt = Sculpture(P - float3(0, 1, 0));
-    float Light = abs(P.x-10.0);
+    //float Light = abs(P.x-10.0);
+    float Light = length(P - float3(0, 5, 0)) - 1.0;
     Q.Dist = min(min(Floor, Sculpt), Light);
     
     if (Q.Dist == Floor)
@@ -138,16 +139,7 @@ material MapMaterial(int ObjId, float3 P)
     else if (ObjId == 2) // Light
     {
         Mat.Albedo = 1.0;
-#if 1
-        float K = 0.0;
-        if (P.y > 5.0 && P.y < 10.0 && abs(P.z) < 20.0) K = 3.0;
-        Mat.Emission = K * float3(frac(0.0001*P.y), 1.0, frac(0.001*P.z));
-#else
-        float K = 0.0;
-        P.y -= 10.0;
-        if (length(P.yz) < 5.0) K = 10.0;
-        Mat.Emission = K;
-#endif
+        Mat.Emission = 5.0;
     }
     else // invalid id
     {

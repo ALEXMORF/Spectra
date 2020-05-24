@@ -226,7 +226,6 @@ engine::UpdateAndRender(HWND Window, input *Input)
         Context.UAVBarrier(&LumMomentTex);
         Context.FlushBarriers();
         
-        Context.CopyResourceBarriered(&LightHistTex, &IntegratedLightTex);
         Context.CopyResourceBarriered(&LumMomentHistTex, &LumMomentTex);
         Context.CopyResourceBarriered(&PositionHistTex, &PositionTex);
         Context.CopyResourceBarriered(&NormalHistTex, &NormalTex);
@@ -272,9 +271,10 @@ engine::UpdateAndRender(HWND Window, input *Input)
             CmdList->SetComputeRootDescriptorTable(3, NormalTex.UAV.GPUHandle);
             CmdList->SetComputeRootDescriptorTable(4, Variances[0]->UAV.GPUHandle);
             CmdList->SetComputeRootDescriptorTable(5, Variances[1]->UAV.GPUHandle);
-            CmdList->SetComputeRoot32BitConstants(6, 3, &Camera.P, 0);
-            CmdList->SetComputeRoot32BitConstants(6, 1, &Depth, 3);
-            CmdList->SetComputeRoot32BitConstants(6, 1, &FilterStride, 4);
+            CmdList->SetComputeRootDescriptorTable(6, LightHistTex.UAV.GPUHandle);
+            CmdList->SetComputeRoot32BitConstants(7, 3, &Camera.P, 0);
+            CmdList->SetComputeRoot32BitConstants(7, 1, &Depth, 3);
+            CmdList->SetComputeRoot32BitConstants(7, 1, &FilterStride, 4);
             CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
             
             Context.UAVBarrier(PingPongs[1]);
@@ -292,6 +292,9 @@ engine::UpdateAndRender(HWND Window, input *Input)
             Variances[0] = VarTemp;
         }
     }
+    
+    Context.UAVBarrier(&LightHistTex);
+    Context.FlushBarriers();
     
     CmdList->SetPipelineState(ToneMapPSO.Handle);
     CmdList->SetComputeRootSignature(ToneMapPSO.RootSignature);

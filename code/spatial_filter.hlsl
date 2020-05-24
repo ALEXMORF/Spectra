@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), RootConstants(num32BitConstants=5, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), DescriptorTable(UAV(u6)), RootConstants(num32BitConstants=5, b0)"
 
 #include "math.hlsl"
 #include "edge_avoiding_functions.hlsl"
@@ -11,6 +11,8 @@ RWTexture2D<float4> NormalTex: register(u3);
 
 RWTexture2D<float> VarianceTex: register(u4);
 RWTexture2D<float> NextVarianceTex: register(u5);
+
+RWTexture2D<float4> LightHistTex: register(u6);
 
 struct context
 {
@@ -85,4 +87,9 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     
     OutputTex[ThreadId] = Filtered;
     NextVarianceTex[ThreadId] = FilteredVariance;
+    
+    if (Context.Depth == 0)
+    {
+        LightHistTex[ThreadId] = Filtered;
+    }
 }
