@@ -95,16 +95,21 @@ query Map(float3 P)
     query Q;
     
     float Floor = P.y;
-    float Sphere = Sculpture(P - float3(0, 1, 0));
-    Q.Dist = min(Floor, Sphere);
+    float Sculpt = Sculpture(P - float3(0, 1, 0));
+    float Light = length(P - float3(0, 5, 0)) - 0.5;
+    Q.Dist = min(min(Floor, Sculpt), Light);
     
     if (Q.Dist == Floor)
     {
         Q.MatId = 0;
     }
-    else if (Q.Dist == Sphere)
+    else if (Q.Dist == Sculpt)
     {
         Q.MatId = 1;
+    }
+    else if (Q.Dist = Light)
+    {
+        Q.MatId = 2;
     }
     else
     {
@@ -123,10 +128,15 @@ material MapMaterial(int ObjId, float3 P)
         Mat.Albedo = float3(0.5, 0.5, 0.3);
         Mat.Emission = 0.0;
     }
-    else if (ObjId == 1) // sphere
+    else if (ObjId == 1) // Sculpt
     {
         Mat.Albedo = 1.0;
         Mat.Emission = 0.0;
+    }
+    else if (ObjId == 2) // Light
+    {
+        Mat.Albedo = 1.0;
+        Mat.Emission = 10.0;
     }
     else // invalid id
     {
@@ -140,7 +150,7 @@ material MapMaterial(int ObjId, float3 P)
 
 float3 Env(float3 Rd)
 {
-    return float3(0.3, 0.4, 0.5);
+    return 0.0*float3(0.3, 0.4, 0.5);
 }
 
 float3 CalcGradient(float3 P)

@@ -12,5 +12,10 @@
 -   camera control [x]
 
 - denoiser []
+-   output depth []
+-   temporal filter []
+-   spatial filter []
+
+- AA []
 
 - shader hotload []
