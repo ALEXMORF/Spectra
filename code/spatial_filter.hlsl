@@ -17,12 +17,12 @@ ConstantBuffer<context> Context: register(b0);
 
 float DepthWeight(float CenterDepth, float SampleDepth)
 {
-    return abs(1.0 - CenterDepth/SampleDepth) < 0.01? 1.0: 0.0;
+    return abs(1.0 - CenterDepth/SampleDepth) < 0.02? 1.0: 0.0;
 }
 
 float NormalWeight(float3 CenterNormal, float3 SampleNormal)
 {
-    return pow(max(0.0, dot(CenterNormal, SampleNormal)), 128.0);
+    return pow(max(0.0, dot(CenterNormal, SampleNormal)), 32.0);
 }
 
 [RootSignature(RS)]
@@ -32,16 +32,18 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     float CenterDepth = length(Context.CamP - PositionBuffer[ThreadId].xyz);
     float3 CenterNormal = NormalBuffer[ThreadId].xyz;
     
+    const float Kernel[3] = {3.0/8.0, 1.0/4.0, 1/16.0};
+    
     float4 Filtered = 0.0;
     float TotalContrib = 0.0;
-    for (int dY = -2; dY <= 2; ++dY)
+    for (int dY = -1; dY <= 1; ++dY)
     {
-        for (int dX = -2; dX <= 2; ++dX)
+        for (int dX = -1; dX <= 1; ++dX)
         {
             int2 Coord = int2(ThreadId) + Context.Stride * int2(dX, dY);
             float4 Tap = InputBuffer[Coord];
             
-            float W = 1.0;
+            float W = Kernel[abs(dX)]*Kernel[abs(dY)];
             float TapDepth = length(Context.CamP - PositionBuffer[Coord].xyz);
             float3 TapNormal = NormalBuffer[Coord].xyz;
             W *= DepthWeight(CenterDepth, TapDepth);

@@ -15,7 +15,9 @@
 -   output aux buffer [x]
 -   temporal filter [x]
 -   spatial filter [x]
--   temporal reprojection []
+-   backproj [x]
+-   backproj rectification [x]
+-   bilinear filter backproj []
 -   variance-guidance []
 
 - AA []

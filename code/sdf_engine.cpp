@@ -167,6 +167,8 @@ engine::UpdateAndRender(HWND Window, input *Input)
     
     // temporal filter
     {
+        quaternion PrevCameraInvOrientation = Conjugate(PrevCamera.Orientation);
+        
         CmdList->SetPipelineState(TemporalFilterPSO.Handle);
         CmdList->SetComputeRootSignature(TemporalFilterPSO.RootSignature);
         CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
@@ -175,15 +177,22 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->SetComputeRootDescriptorTable(2, IntegratedLightTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(3, PositionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(4, NormalTex.UAV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(5, 1, &FrameIndex, 0);
-        CmdList->SetComputeRoot32BitConstants(5, 3, &PrevCamera.P, 1);
-        CmdList->SetComputeRoot32BitConstants(5, 4, &PrevCamera.Orientation, 4);
+        CmdList->SetComputeRootDescriptorTable(5, PositionHistTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(6, NormalHistTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(7, 1, &FrameIndex, 0);
+        CmdList->SetComputeRoot32BitConstants(7, 3, &PrevCamera.P, 1);
+        CmdList->SetComputeRoot32BitConstants(7, 4, &PrevCameraInvOrientation, 4);
+        CmdList->SetComputeRoot32BitConstants(7, 3, &Camera.P, 8);
+        CmdList->SetComputeRoot32BitConstants(7, 1, &Width, 12);
+        CmdList->SetComputeRoot32BitConstants(7, 1, &Height, 13);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&IntegratedLightTex);
         Context.FlushBarriers();
         
         Context.CopyResourceBarriered(&LightHistTex, &IntegratedLightTex);
+        Context.CopyResourceBarriered(&PositionHistTex, &PositionTex);
+        Context.CopyResourceBarriered(&NormalHistTex, &NormalTex);
     }
     
     // spatial filter
