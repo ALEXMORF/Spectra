@@ -33,38 +33,60 @@ ConstantBuffer<context> Context: register(b0);
 void main(uint2 ThreadId: SV_DispatchThreadID)
 {
     float3 P = PositionTex[ThreadId].xyz;
+    float3 CurrN = NormalTex[ThreadId].xyz;
     float3 ClipP = qrot(P - Context.PrevCamP, Context.PrevCamInvQuat);
     float2 UV = ClipP.xy / ClipP.z * 1.7;
     UV.y = -UV.y;
     UV.x /= float(Context.Width) / float(Context.Height);
     float2 HistPixelId = (0.5 * UV + 0.5) * float2(Context.Width,
                                                    Context.Height);
-    HistPixelId += 0.5;
     
     float4 Hist = LightHistTex[int2(HistPixelId)];
     
-    float Alpha = 0.1;
-    if (Context.FrameIndex == 0)
+    if (Context.FrameIndex != 0 || 
+        any(HistPixelId < 0.0 || HistPixelId > float2(Context.Width-1, Context.Height-1)))
     {
-        Alpha = 1.0;
+        float2 Interp = frac(HistPixelId);
+        int2 PixelCoord = floor(HistPixelId);
+        
+        float4 FilteredHist = 0;
+        float TotalContrib = 0;
+        for (int dY = 0; dY <= 1; ++dY)
+        {
+            for (int dX = 0; dX <= 1; ++dX)
+            {
+                int2 TapCoord = PixelCoord + int2(dX, dY);
+                float3 PrevN = NormalHistTex[TapCoord].xyz;
+                float3 PrevP = PositionHistTex[TapCoord].xyz;
+                float PrevDepth = length(Context.CamP - PrevP);
+                float CurrDepth = length(Context.CamP - P);
+                if (abs(1.0 - CurrDepth/PrevDepth) < 0.1 &&
+                    dot(CurrN, PrevN) >= 0.9)
+                {
+                    float2 Bilinear = lerp(1.0-Interp, Interp, float2(dX, dY));
+                    float W = Bilinear.x * Bilinear.y;
+                    FilteredHist += W *LightHistTex[TapCoord];
+                    TotalContrib += W;
+                }
+            }
+        }
+        
+        if (TotalContrib > 0.0) 
+        {
+            FilteredHist /= TotalContrib;
+            
+            float Alpha = 0.1;
+            float4 Input = InputTex[ThreadId];
+            float4 Filtered = lerp(FilteredHist, Input, Alpha);
+            FilteredTex[ThreadId] = Filtered;
+        }
+        else
+        {
+            FilteredTex[ThreadId] = InputTex[ThreadId];
+        }
     }
-    if (any(HistPixelId < 0.0 || HistPixelId > float2(Context.Width-1, Context.Height-1)))
+    else
     {
-        Alpha = 1.0;
+        FilteredTex[ThreadId] = InputTex[ThreadId];
     }
-    
-    float3 PrevN = NormalHistTex[int2(HistPixelId)].xyz;
-    float3 PrevP = PositionHistTex[int2(HistPixelId)].xyz;
-    float PrevDepth = length(Context.CamP - PrevP);
-    float CurrDepth = length(Context.CamP - P);
-    float3 CurrN = NormalTex[int2(HistPixelId)].xyz;
-    if (abs(1.0 - CurrDepth/PrevDepth) >= 0.1 ||
-        dot(CurrN, PrevN) < 0.99)
-    {
-        Alpha = 1.0;
-    }
-    
-    float4 Input = InputTex[ThreadId];
-    float4 Filtered = lerp(Hist, Input, Alpha);
-    FilteredTex[ThreadId] = Filtered;
 }

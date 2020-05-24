@@ -17,7 +17,8 @@
 -   spatial filter [x]
 -   backproj [x]
 -   backproj rectification [x]
--   bilinear filter backproj []
+-   bilinear filter backproj [x]
+-   optimize spatial filter []
 -   variance-guidance []
 
 - AA []

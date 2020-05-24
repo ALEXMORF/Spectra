@@ -17,7 +17,7 @@ ConstantBuffer<context> Context: register(b0);
 
 float DepthWeight(float CenterDepth, float SampleDepth)
 {
-    return abs(1.0 - CenterDepth/SampleDepth) < 0.02? 1.0: 0.0;
+    return abs(1.0 - CenterDepth/SampleDepth) < 0.01? 1.0: 0.0;
 }
 
 float NormalWeight(float3 CenterNormal, float3 SampleNormal)
