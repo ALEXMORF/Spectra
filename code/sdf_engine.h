@@ -41,9 +41,20 @@ struct engine
     descriptor_arena UAVArena;
     
     pso PathTracePSO;
+    pso TemporalFilterPSO;
+    pso SpatialFilterPSO;
     pso ToneMapPSO;
     
+    // pathtracer output
     texture LightTex;
+    texture PositionTex;
+    texture NormalTex;
+    
+    // denoise data
+    texture LightHistTex;
+    texture IntegratedLightTex;
+    texture TempTex;
+    
     texture OutputTex;
     texture BackBufferTexs[BACKBUFFER_COUNT];
     

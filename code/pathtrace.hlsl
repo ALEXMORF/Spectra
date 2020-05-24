@@ -1,6 +1,8 @@
-#define RS "DescriptorTable(UAV(u0)), RootConstants(num32BitConstants=12, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), RootConstants(num32BitConstants=12, b0)"
 
-RWTexture2D<float4> OutputTex: register(u0);
+RWTexture2D<float4> LightTex: register(u0);
+RWTexture2D<float4> PositionTex: register(u1);
+RWTexture2D<float4> NormalTex: register(u2);
 
 struct context
 {
@@ -136,7 +138,7 @@ material MapMaterial(int ObjId, float3 P)
     else if (ObjId == 2) // Light
     {
         Mat.Albedo = 1.0;
-        Mat.Emission = 10.0;
+        Mat.Emission = 0.0;
     }
     else // invalid id
     {
@@ -150,7 +152,7 @@ material MapMaterial(int ObjId, float3 P)
 
 float3 Env(float3 Rd)
 {
-    return 0.0*float3(0.3, 0.4, 0.5);
+    return 3.0*float3(0.3, 0.4, 0.5);
 }
 
 float3 CalcGradient(float3 P)
@@ -219,17 +221,37 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     for (int Depth = 0; Depth < BounceCount; ++Depth)
     {
         hit Hit = RayTrace(Ro, Rd);
+        float3 HitP = Ro + Hit.T*Rd;
+        float3 HitN = CalcGradient(HitP);
+        
+        // record primary hits
+        if (Depth == 0)
+        {
+            if (Hit.MatId != -1)
+            {
+                PositionTex[ThreadId] = float4(HitP, 0.0);
+                NormalTex[ThreadId] = float4(HitN, 0.0);
+            }
+            else
+            {
+                PositionTex[ThreadId] = 10e31;
+                NormalTex[ThreadId] = 0;
+            }
+        }
+        
         if (Hit.MatId != -1)
         {
-            float3 HitP = Ro + Hit.T*Rd;
-            float3 HitN = CalcGradient(HitP);
             material Mat = MapMaterial(Hit.MatId, HitP);
             
             Radiance += Attenuation * Mat.Emission;
             float3 BRDF = Mat.Albedo/Pi * clamp(dot(HitN, -Rd), 0.0, 1.0);
             if (Depth == 0)
             {
-                BRDF = Mat.Albedo/Pi;
+                //NOTE(chen): don't apply primary surface BRDF, only
+                //            record indirect illumination for denoising,
+                //            primary surface BRDF will be applied post-denoised
+                //BRDF = Mat.Albedo/Pi;
+                BRDF = 1.0;
             }
             Attenuation *= BRDF;
             
@@ -243,15 +265,5 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         }
     }
     
-    float3 Col = Radiance;
-    
-    if (Context.FrameIndex != 0)
-    {
-        float3 HistCol = OutputTex[ThreadId].rgb;
-        OutputTex[ThreadId] = float4(lerp(HistCol, Col, 1.0), 1.0);
-    }
-    else
-    {
-        OutputTex[ThreadId] = float4(Col, 1.0);
-    }
+    LightTex[ThreadId] = float4(Radiance, 1.0);
 }
