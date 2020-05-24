@@ -139,7 +139,7 @@ material MapMaterial(int ObjId, float3 P)
     {
         Mat.Albedo = 1.0;
         float K = 0.0;
-        if (P.y > 5.0 && P.y < 15.0) K = 3.0;
+        if (P.y > 5.0 && P.y < 10.0) K = 3.0;
         Mat.Emission = K * float3(frac(0.001*P.y), 1.0, frac(0.001*P.z));
     }
     else // invalid id
