@@ -12,3 +12,13 @@ float3 CalcViewP(float3 P, float3 CamP, float4 CamInvQuat)
 {
     return qrot(P - CamP, CamInvQuat);
 }
+
+float3 TaaTonemap(float3 Col)
+{
+    return Col / (1.0 + CalcLuminance(Col));
+}
+
+float3 TaaInvTonemap(float3 Col)
+{
+    return Col / (1.0 - CalcLuminance(Col));
+}

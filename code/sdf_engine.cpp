@@ -212,6 +212,11 @@ engine::UpdateAndRender(HWND Window, input *Input)
     v3 CamOffset = Rotate(ZAxis(), Camera.Orientation);
     v3 CamAt = Camera.P + CamOffset;
     
+    if (Input->Keys['N']) SwitchViewThreshold -= 10;
+    if (Input->Keys['M']) SwitchViewThreshold += 10;
+    if (SwitchViewThreshold < 0) SwitchViewThreshold = 0;
+    if (SwitchViewThreshold >= Width) SwitchViewThreshold = Width-1;
+    
     // path tracing
     {
         CmdList->SetPipelineState(PathTracePSO.Handle);
@@ -388,14 +393,19 @@ engine::UpdateAndRender(HWND Window, input *Input)
     Context.UAVBarrier(&LightHistTex);
     Context.FlushBarriers();
     
-    CmdList->SetPipelineState(ToneMapPSO.Handle);
-    CmdList->SetComputeRootSignature(ToneMapPSO.RootSignature);
-    CmdList->SetComputeRootDescriptorTable(0, TaaOutputTex.UAV.GPUHandle);
-    CmdList->SetComputeRootDescriptorTable(1, OutputTex.UAV.GPUHandle);
-    CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
-    
-    Context.UAVBarrier(&OutputTex);
-    Context.FlushBarriers();
+    // tonemap
+    {
+        CmdList->SetPipelineState(ToneMapPSO.Handle);
+        CmdList->SetComputeRootSignature(ToneMapPSO.RootSignature);
+        CmdList->SetComputeRootDescriptorTable(0, TaaOutputTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(1, OutputTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(2, LightTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(3, 1, &SwitchViewThreshold, 0);
+        CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
+        
+        Context.UAVBarrier(&OutputTex);
+        Context.FlushBarriers();
+    }
     
     UINT BackBufferIndex = SwapChain->GetCurrentBackBufferIndex();
     texture *BackBufferTex = BackBufferTexs + BackBufferIndex;

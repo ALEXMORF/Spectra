@@ -27,7 +27,7 @@
 -   pull out history pixel coord correlation [x]
 -   basic TAA [x]
 -   jitter/unjitter [x]
--   tonemap []
+-   tonemap in, inv-tonemap out []
 
 - apply back first-hit BRDF []
 

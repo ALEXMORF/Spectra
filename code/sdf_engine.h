@@ -76,6 +76,7 @@ struct engine
     
     camera Camera;
     camera PrevCamera;
+    int SwitchViewThreshold;
     
     float Time;
     int FrameIndex;
