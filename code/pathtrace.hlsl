@@ -1,5 +1,7 @@
 #define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), RootConstants(num32BitConstants=12, b0)"
 
+#include "random.hlsl"
+
 RWTexture2D<float4> LightTex: register(u0);
 RWTexture2D<float4> PositionTex: register(u1);
 RWTexture2D<float4> NormalTex: register(u2);
@@ -20,14 +22,6 @@ struct context
 ConstantBuffer<context> Context: register(b0);
 
 #define Pi 3.1415926
-
-static float2 gSeed;
-
-float2 Rand2() {
-    gSeed += float2(-1,1);
-    return float2(frac(sin(dot(gSeed.xy ,float2(12.9898,78.233))) * 43758.5453),
-                  frac(cos(dot(gSeed.xy ,float2(4.898,7.23))) * 23421.631));
-};
 
 float3 SampleHemisphereCosineWeighted(float3 N)
 {
@@ -202,7 +196,10 @@ float3 Tonemap(float3 Col)
 [numthreads(32, 32, 1)]
 void main(uint2 ThreadId: SV_DispatchThreadID)
 {
-    float2 UV = float2(ThreadId) / float2(Context.Width, Context.Height);
+    gSeed = float(Context.FrameIndex)+1.0;
+    float2 Jitter = Rand2() - 0.5;
+    
+    float2 UV = (float2(ThreadId) + 0.5 + Jitter) / float2(Context.Width, Context.Height);
     UV = 2.0 * UV - 1.0;
     UV.y = -UV.y;
     UV.x *= float(Context.Width)/float(Context.Height);

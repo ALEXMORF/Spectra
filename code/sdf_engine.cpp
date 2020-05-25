@@ -265,6 +265,7 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->SetComputeRoot32BitConstants(2, 4, &PrevCameraInvOrientation, 4);
         CmdList->SetComputeRoot32BitConstants(2, 1, &Width, 8);
         CmdList->SetComputeRoot32BitConstants(2, 1, &Height, 9);
+        CmdList->SetComputeRoot32BitConstants(2, 1, &FrameIndex, 10);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&PrevPixelIdTex);

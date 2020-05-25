@@ -23,9 +23,11 @@
 -   feedback first-level wavelet to temporal filter [x]
 -   optimize spatial filter [x]
 
-- TAA [x]
+- TAA []
 -   pull out history pixel coord correlation [x]
 -   basic TAA [x]
+-   jitter/unjitter [x]
+-   tonemap []
 
 - apply back first-hit BRDF []
 
