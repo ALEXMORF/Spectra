@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), RootConstants(num32BitConstants=12, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), RootConstants(num32BitConstants=12, b0)"
 
 #include "constants.hlsl"
 #include "scene.hlsl"
@@ -9,6 +9,7 @@ RWTexture2D<float4> PositionTex: register(u1);
 RWTexture2D<float4> NormalTex: register(u2);
 RWTexture2D<float4> AlbedoTex: register(u3);
 RWTexture2D<float4> EmissionTex: register(u4);
+RWTexture2D<float4> RayDirTex: register(u5);
 
 struct context
 {
@@ -115,6 +116,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     float3 CamX = normalize(cross(float3(0, 1, 0), CamZ));
     float3 CamY = cross(CamZ, CamX);
     float3 Rd = normalize(CamX * UV.x + CamY * UV.y + 1.7 * CamZ);
+    RayDirTex[ThreadId] = float4(Rd, 0.0);
     
     int BounceCount = 4;
     

@@ -76,6 +76,14 @@ engine::UpdateAndRender(HWND Window, input *Input)
         D->CreateUnorderedAccessView(EmissionTex.Handle, 0, 0, 
                                      EmissionTex.UAV.CPUHandle);
         
+        RayDirTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                  DXGI_FORMAT_R32G32B32A32_FLOAT,
+                                  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        RayDirTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(RayDirTex.Handle, 0, 0, 
+                                     RayDirTex.UAV.CPUHandle);
+        
         PositionHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                         DXGI_FORMAT_R32G32B32A32_FLOAT,
                                         D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
@@ -244,17 +252,21 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->SetComputeRootDescriptorTable(2, NormalTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(3, AlbedoTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(4, EmissionTex.UAV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(5, 1, &Width, 0);
-        CmdList->SetComputeRoot32BitConstants(5, 1, &Height, 1);
-        CmdList->SetComputeRoot32BitConstants(5, 1, &FrameIndex, 2);
-        CmdList->SetComputeRoot32BitConstants(5, 3, &Camera.P, 4);
-        CmdList->SetComputeRoot32BitConstants(5, 3, &CamAt, 8);
-        CmdList->SetComputeRoot32BitConstants(5, 1, &Time, 11);
+        CmdList->SetComputeRootDescriptorTable(5, RayDirTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(6, 1, &Width, 0);
+        CmdList->SetComputeRoot32BitConstants(6, 1, &Height, 1);
+        CmdList->SetComputeRoot32BitConstants(6, 1, &FrameIndex, 2);
+        CmdList->SetComputeRoot32BitConstants(6, 3, &Camera.P, 4);
+        CmdList->SetComputeRoot32BitConstants(6, 3, &CamAt, 8);
+        CmdList->SetComputeRoot32BitConstants(6, 1, &Time, 11);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&LightTex);
         Context.UAVBarrier(&PositionTex);
         Context.UAVBarrier(&NormalTex);
+        Context.UAVBarrier(&AlbedoTex);
+        Context.UAVBarrier(&EmissionTex);
+        Context.UAVBarrier(&RayDirTex);
         Context.FlushBarriers();
     }
     
@@ -398,7 +410,8 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->SetComputeRootDescriptorTable(1, PositionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, AlbedoTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(3, EmissionTex.UAV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(4, 1, &Time, 0);
+        CmdList->SetComputeRootDescriptorTable(4, RayDirTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &Time, 0);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&IntegratedLightTex);

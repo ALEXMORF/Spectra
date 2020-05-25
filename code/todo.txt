@@ -29,10 +29,10 @@
 -   jitter/unjitter [x]
 -   tonemap in, inv-tonemap out [x]
 
-- apply back first-hit BRDF []
+- apply back first-hit BRDF [x]
 -   apply primary brdf [x]
 -   apply primary emission [x]
--   apply Env() on sky []
+-   apply Env() on sky [x]
 
 - shader hotload []
 

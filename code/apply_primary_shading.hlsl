@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), RootConstants(num32BitConstants=1, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), RootConstants(num32BitConstants=1, b0)"
 
 #include "constants.hlsl"
 #include "scene.hlsl"
@@ -7,17 +7,20 @@ RWTexture2D<float4> LightTex: register(u0);
 RWTexture2D<float4> PositionTex: register(u1);
 RWTexture2D<float4> AlbedoTex: register(u2);
 RWTexture2D<float4> EmissionTex: register(u3);
+RWTexture2D<float4> RayDirTex: register(u4);
 
 struct context
 {
     float Time;
 };
 
+ConstantBuffer<context> Context: register(b0);
+
 [RootSignature(RS)]
 [numthreads(32, 32, 1)]
 void main(uint2 ThreadId: SV_DispatchThreadID)
 {
-    float3 P = PositionTex[ThreadId];
+    float3 P = PositionTex[ThreadId].xyz;
     
     if (length(P) < 10e30)
     {
@@ -31,7 +34,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     }
     else
     {
-        float3 Rd = 0;
-        LightTex[ThreadId] = float4(Env(1.0, Context.Time), 1.0);
+        float3 Rd = RayDirTex[ThreadId].xyz;
+        LightTex[ThreadId] = float4(Env(Rd, Context.Time), 1.0);
     }
 }

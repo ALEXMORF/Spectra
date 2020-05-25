@@ -56,6 +56,7 @@ struct engine
     texture NormalTex;
     texture AlbedoTex;
     texture EmissionTex;
+    texture RayDirTex;
     
     // denoiser data
     texture PositionHistTex;
