@@ -23,20 +23,31 @@
 -   feedback first-level wavelet to temporal filter [x]
 -   optimize spatial filter [x]
 
-- TAA []
+- TAA [x]
 -   pull out history pixel coord correlation [x]
 -   basic TAA [x]
 -   jitter/unjitter [x]
--   tonemap in, inv-tonemap out []
+-   tonemap in, inv-tonemap out [x]
 
 - apply back first-hit BRDF []
+-   apply primary brdf [x]
+-   apply primary emission [x]
+-   apply Env() on sky []
 
 - shader hotload []
 
-- multi-temporal-filter approach []
+- light transport solidify []
+-   do I need cosine term after cosine-weighted sampling? []
+-   pi or not pi []
+
+- ditter []
+
+- better TAA sampling []
 
 - better light sampling []
--   tiled blue noise []
--   pixar's multi-jittered samples []
+-   blue noise []
+-   progressive multi-jittering (pmj) []
+
+- multi-temporal-filter approach []
 
 - better depth weighting in spatial filter []

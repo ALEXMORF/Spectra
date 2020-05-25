@@ -46,6 +46,7 @@ struct engine
     pso PackGBufferPSO;
     pso CorrelateHistoryPSO;
     pso SpatialFilterPSO;
+    pso ApplyPrimaryShadingPSO;
     pso TaaPSO;
     pso ToneMapPSO;
     
@@ -53,6 +54,8 @@ struct engine
     texture LightTex;
     texture PositionTex;
     texture NormalTex;
+    texture AlbedoTex;
+    texture EmissionTex;
     
     // denoiser data
     texture PositionHistTex;

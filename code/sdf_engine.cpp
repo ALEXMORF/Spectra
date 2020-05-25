@@ -32,6 +32,7 @@ engine::UpdateAndRender(HWND Window, input *Input)
         PackGBufferPSO = InitComputePSO(D, L"../code/pack_gbuffer.hlsl", "main");
         CorrelateHistoryPSO = InitComputePSO(D, L"../code/correlate_history.hlsl", "main");
         SpatialFilterPSO = InitComputePSO(D, L"../code/spatial_filter.hlsl", "main");
+        ApplyPrimaryShadingPSO = InitComputePSO(D, L"../code/apply_primary_shading.hlsl", "main");
         TaaPSO = InitComputePSO(D, L"../code/taa.hlsl", "main");
         ToneMapPSO = InitComputePSO(D, L"../code/tonemap.hlsl", "main");
         
@@ -58,6 +59,22 @@ engine::UpdateAndRender(HWND Window, input *Input)
         NormalTex.UAV = UAVArena.PushDescriptor();
         D->CreateUnorderedAccessView(NormalTex.Handle, 0, 0, 
                                      NormalTex.UAV.CPUHandle);
+        
+        AlbedoTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                  DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        AlbedoTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(AlbedoTex.Handle, 0, 0, 
+                                     AlbedoTex.UAV.CPUHandle);
+        
+        EmissionTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                    DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        EmissionTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(EmissionTex.Handle, 0, 0, 
+                                     EmissionTex.UAV.CPUHandle);
         
         PositionHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                         DXGI_FORMAT_R32G32B32A32_FLOAT,
@@ -225,12 +242,14 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->SetComputeRootDescriptorTable(0, LightTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, PositionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, NormalTex.UAV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(3, 1, &Width, 0);
-        CmdList->SetComputeRoot32BitConstants(3, 1, &Height, 1);
-        CmdList->SetComputeRoot32BitConstants(3, 1, &FrameIndex, 2);
-        CmdList->SetComputeRoot32BitConstants(3, 3, &Camera.P, 4);
-        CmdList->SetComputeRoot32BitConstants(3, 3, &CamAt, 8);
-        CmdList->SetComputeRoot32BitConstants(3, 1, &Time, 11);
+        CmdList->SetComputeRootDescriptorTable(3, AlbedoTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(4, EmissionTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &Width, 0);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &Height, 1);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &FrameIndex, 2);
+        CmdList->SetComputeRoot32BitConstants(5, 3, &Camera.P, 4);
+        CmdList->SetComputeRoot32BitConstants(5, 3, &CamAt, 8);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &Time, 11);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&LightTex);
@@ -369,6 +388,21 @@ engine::UpdateAndRender(HWND Window, input *Input)
             Variances[1] = Variances[0];
             Variances[0] = VarTemp;
         }
+    }
+    
+    // apply primary shading
+    {
+        CmdList->SetPipelineState(ApplyPrimaryShadingPSO.Handle);
+        CmdList->SetComputeRootSignature(ApplyPrimaryShadingPSO.RootSignature);
+        CmdList->SetComputeRootDescriptorTable(0, IntegratedLightTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(1, PositionTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(2, AlbedoTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(3, EmissionTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(4, 1, &Time, 0);
+        CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
+        
+        Context.UAVBarrier(&IntegratedLightTex);
+        Context.FlushBarriers();
     }
     
     // TAA
