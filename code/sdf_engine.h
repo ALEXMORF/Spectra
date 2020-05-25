@@ -44,7 +44,9 @@ struct engine
     pso TemporalFilterPSO;
     pso CalcVariancePSO;
     pso PackGBufferPSO;
+    pso CorrelateHistoryPSO;
     pso SpatialFilterPSO;
+    pso TaaPSO;
     pso ToneMapPSO;
     
     // pathtracer output
@@ -52,7 +54,7 @@ struct engine
     texture PositionTex;
     texture NormalTex;
     
-    // denoise data
+    // denoiser data
     texture PositionHistTex;
     texture NormalHistTex;
     texture LightHistTex;
@@ -61,8 +63,13 @@ struct engine
     texture VarianceTex;
     texture NextVarianceTex;
     texture GBufferTex;
+    texture PrevPixelIdTex;
     texture IntegratedLightTex;
     texture TempTex;
+    
+    // TAA data
+    texture TaaHistTex;
+    texture TaaOutputTex;
     
     texture OutputTex;
     texture BackBufferTexs[BACKBUFFER_COUNT];

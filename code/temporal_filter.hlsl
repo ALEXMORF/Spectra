@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), DescriptorTable(UAV(u6)), DescriptorTable(UAV(u7)), DescriptorTable(UAV(u8)), RootConstants(num32BitConstants=18, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), DescriptorTable(UAV(u6)), DescriptorTable(UAV(u7)), DescriptorTable(UAV(u8)), DescriptorTable(UAV(u9)), RootConstants(num32BitConstants=10, b0)"
 
 #include "math.hlsl"
 
@@ -15,18 +15,13 @@ RWTexture2D<float4> NormalHistTex: register(u6);
 RWTexture2D<float2> LumMomentHistTex: register(u7);
 RWTexture2D<float2> LumMomentTex: register(u8);
 
+RWTexture2D<float2> PrevPixelIdTex: register(u9);
+
 struct context
 {
     int FrameIndex;
-    float3 PrevCamP;
-    
-    float4 PrevCamInvQuat;
-    
-    float4 CamInvQuat;
-    
     float3 CamP;
-    uint Pad;
-    
+    float4 CamInvQuat;
     int Width;
     int Height;
 };
@@ -39,18 +34,13 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
 {
     float3 P = PositionTex[ThreadId].xyz;
     float3 CurrN = NormalTex[ThreadId].xyz;
-    float3 PrevViewP = CalcViewP(P, Context.PrevCamP, Context.PrevCamInvQuat);
-    float2 PrevUV = PrevViewP.xy / PrevViewP.z * 1.7;
-    PrevUV.y = -PrevUV.y;
-    PrevUV.x /= float(Context.Width) / float(Context.Height);
-    float2 PrevPixelId = (0.5 * PrevUV + 0.5) * float2(Context.Width,
-                                                       Context.Height);
+    float2 PrevPixelId = PrevPixelIdTex[ThreadId];
     
     float CenterLum = CalcLuminance(InputTex[ThreadId].rgb);
     float2 LumMoments = float2(CenterLum, CenterLum * CenterLum);
     
-    if (Context.FrameIndex != 0 || 
-        any(PrevPixelId < 0.0 || PrevPixelId > float2(Context.Width-1, Context.Height-1)))
+    if (Context.FrameIndex != 0 &&
+        all(PrevPixelId >= 0.0 && PrevPixelId <= float2(Context.Width-1, Context.Height-1)))
     {
         float2 Interp = frac(PrevPixelId);
         int2 PrevPixelCoord = floor(PrevPixelId);

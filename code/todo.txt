@@ -23,11 +23,15 @@
 -   feedback first-level wavelet to temporal filter [x]
 -   optimize spatial filter [x]
 
-- TAA []
+- TAA [x]
+-   pull out history pixel coord correlation [x]
+-   basic TAA [x]
 
 - apply back first-hit BRDF []
 
 - shader hotload []
+
+- multi-temporal-filter approach []
 
 - better light sampling []
 -   tiled blue noise []
