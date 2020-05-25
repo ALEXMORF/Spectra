@@ -160,17 +160,17 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
                 Radiance += Attenuation * Mat.Emission;
             }
             
-            float3 BRDF = Mat.Albedo/Pi * clamp(dot(HitN, -Rd), 0.0, 1.0);
+            float3 Brdf = Mat.Albedo/Pi * clamp(dot(HitN, -Rd), 0.0, 1.0);
             if (Depth == 0)
             {
-                //NOTE(chen): don't apply primary surface BRDF, only
+                //NOTE(chen): don't apply primary surface Brdf, only
                 //            record indirect illumination for denoising,
-                //            primary surface BRDF will be applied post-denoised
-                //BRDF = Mat.Albedo/Pi;
-                BRDF = 1.0;
+                //            primary surface Brdf will be applied post-denoised
+                //Brdf = Mat.Albedo/Pi;
+                Brdf = 1.0;
             }
             
-            Attenuation *= BRDF;
+            Attenuation *= Brdf;
             
             Ro = HitP + 0.01*HitN;
             Rd = SampleHemisphereCosineWeighted(HitN);

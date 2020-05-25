@@ -8,6 +8,7 @@
 #include <d3dcompiler.h>
 
 internal void Win32Panic(char *Fmt, ...);
+internal void Win32MessageBox(char *Title, UINT Type, char *Fmt, ...);
 
 #include "d3d12_utils.h"
 #include "ch_math.h"
@@ -86,5 +87,5 @@ struct engine
     int FrameIndex;
     b32 IsInitialized;
     
-    void UpdateAndRender(HWND Window, input *Input);
+    void UpdateAndRender(HWND Window, input *Input, b32 NeedsReload);
 };

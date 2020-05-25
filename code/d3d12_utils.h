@@ -38,6 +38,7 @@ struct texture
 
 struct gpu_context
 {
+    ID3D12Device *Device;
     ID3D12CommandAllocator *CmdAllocator;
     ID3D12GraphicsCommandList *CmdList;
     ID3D12CommandQueue *CmdQueue;
@@ -67,6 +68,7 @@ internal gpu_context
 InitGPUContext(ID3D12Device *D)
 {
     gpu_context Context = {};
+    Context.Device = D;
     
     D3D12_COMMAND_QUEUE_DESC CmdQueueDesc = {};
     CmdQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;

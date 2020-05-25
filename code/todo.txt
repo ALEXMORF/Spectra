@@ -35,6 +35,10 @@
 -   apply Env() on sky [x]
 
 - shader hotload []
+-   timestamp check & reload [x]
+-   basic leak & reload [x]
+-   gracefully reload []
+-   gracefully spit error msg []
 
 - light transport solidify []
 -   do I need cosine term after cosine-weighted sampling? []

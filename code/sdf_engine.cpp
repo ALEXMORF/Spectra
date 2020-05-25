@@ -1,7 +1,7 @@
 #include "sdf_engine.h"
 
 void
-engine::UpdateAndRender(HWND Window, input *Input)
+engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
 {
     if (!IsInitialized)
     {
@@ -200,6 +200,21 @@ engine::UpdateAndRender(HWND Window, input *Input)
         Camera.Orientation = Quaternion();
         
         IsInitialized = true;
+    }
+    
+    if (NeedsReload)
+    {
+        ID3D12Device *D = Context.Device;
+        
+        PathTracePSO = InitComputePSO(D, L"../code/pathtrace.hlsl", "main");
+        TemporalFilterPSO = InitComputePSO(D, L"../code/temporal_filter.hlsl", "main");
+        CalcVariancePSO = InitComputePSO(D, L"../code/calc_variance.hlsl", "main");
+        PackGBufferPSO = InitComputePSO(D, L"../code/pack_gbuffer.hlsl", "main");
+        CorrelateHistoryPSO = InitComputePSO(D, L"../code/correlate_history.hlsl", "main");
+        SpatialFilterPSO = InitComputePSO(D, L"../code/spatial_filter.hlsl", "main");
+        ApplyPrimaryShadingPSO = InitComputePSO(D, L"../code/apply_primary_shading.hlsl", "main");
+        TaaPSO = InitComputePSO(D, L"../code/taa.hlsl", "main");
+        ToneMapPSO = InitComputePSO(D, L"../code/tonemap.hlsl", "main");
     }
     
     // camera orientation

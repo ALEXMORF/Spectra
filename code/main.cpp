@@ -8,6 +8,19 @@
 global bool gAppIsDone;
 
 internal void
+Win32MessageBox(char *Title, UINT Type, char *Fmt, ...)
+{
+    va_list Args;
+    va_start(Args, Fmt);
+    
+    char Buf[2048];
+    vsnprintf(Buf, sizeof(Buf), Fmt, Args);
+    va_end(Args);
+    
+    MessageBoxA(0, Buf, Title, Type);
+}
+
+internal void
 Win32Panic(char *Fmt, ...)
 {
     va_list Args;
@@ -47,21 +60,31 @@ Win32WindowCallback(HWND Window, UINT Message,
             b32 KeyWasDown = (LParam & (1 << 30)) != 0;
             b32 AltIsDown = (LParam & (1 << 29)) != 0;
             
-            if (KeyIsDown != KeyWasDown)
+            if (KeyIsDown)
             {
-                gInput.Keys[WParam] = KeyIsDown;
+                gInput.Keys[WParam] += 1;
                 
-                if (KeyIsDown)
+                // prevent overflow
+                if (gInput.Keys[WParam] == 1000)
                 {
-                    if (WParam == VK_ESCAPE)
-                    {
-                        gAppIsDone = true;
-                    }
-                    
-                    if (AltIsDown && WParam == VK_F4)
-                    {
-                        gAppIsDone = true;
-                    }
+                    gInput.Keys[WParam] = 1000;
+                }
+            }
+            else
+            {
+                gInput.Keys[WParam] = 0;
+            }
+            
+            if (KeyIsDown)
+            {
+                if (WParam == VK_ESCAPE)
+                {
+                    gAppIsDone = true;
+                }
+                
+                if (AltIsDown && WParam == VK_F4)
+                {
+                    gAppIsDone = true;
                 }
             }
         } break;
@@ -102,6 +125,23 @@ Win32WindowCallback(HWND Window, UINT Message,
     return Result;
 }
 
+FILETIME GetLastWriteTime(char *FilePath)
+{
+    FILETIME Result = {};
+    
+    HANDLE SceneFile = CreateFileA(FilePath,
+                                   GENERIC_READ,
+                                   FILE_SHARE_READ|FILE_SHARE_WRITE,
+                                   0, OPEN_EXISTING, 0, 0);
+    if (SceneFile != INVALID_HANDLE_VALUE)
+    {
+        GetFileTime(SceneFile, 0, 0, &Result);
+        CloseHandle(SceneFile);
+    }
+    
+    return Result;
+}
+
 int CALLBACK
 WinMain(HINSTANCE Instance, 
         HINSTANCE PrevInstance, 
@@ -115,7 +155,7 @@ WinMain(HINSTANCE Instance,
     WindowClass.lpfnWndProc = Win32WindowCallback;
     WindowClass.hInstance = Instance;
     WindowClass.hCursor = LoadCursorA(0, IDC_ARROW);
-    WindowClass.lpszClassName = "sdf engine window class";
+    WindowClass.lpszClassName = "Spectra window class";
     
     if (RegisterClassA(&WindowClass))
     {
@@ -135,7 +175,7 @@ WinMain(HINSTANCE Instance,
         
         HWND Window = CreateWindowExA(0,
                                       WindowClass.lpszClassName,
-                                      "SDF Engine",
+                                      "Spectra",
                                       WindowStyle,
                                       CW_USEDEFAULT,
                                       CW_USEDEFAULT,
@@ -144,6 +184,9 @@ WinMain(HINSTANCE Instance,
                                       0, 0, Instance, 0);
         
         engine Engine = {};
+        
+        char *HotCodeFilename = "../code/scene.hlsl";
+        FILETIME SceneFileLastWriteTime = GetLastWriteTime(HotCodeFilename);
         
         while (!gAppIsDone)
         {
@@ -156,7 +199,12 @@ WinMain(HINSTANCE Instance,
                 DispatchMessage(&Message);
             }
             
-            Engine.UpdateAndRender(Window, &gInput);
+            FILETIME LastWriteTime = GetLastWriteTime(HotCodeFilename);
+            int CmpRes = CompareFileTime(&SceneFileLastWriteTime, &LastWriteTime);
+            b32 NeedsReload = CmpRes != 0;
+            if (NeedsReload) SceneFileLastWriteTime = LastWriteTime;
+            
+            Engine.UpdateAndRender(Window, &gInput, NeedsReload);
             
             Sleep(2);
         }

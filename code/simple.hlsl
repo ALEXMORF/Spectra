@@ -28,14 +28,14 @@ material MapMaterial(int ObjId, float3 P, float Time)
     
     if (ObjId == 1) // Sphere
     {
-        Mat.Albedo = 1.0;
+        Mat.Albedo = 0.8;
         Mat.Emission = 0.0;
         
         if (abs(P.x - 0.0) < 0.1) Mat.Emission = P;
     }
     else // invalid id (default)
     {
-        Mat.Albedo = 1.0;
+        Mat.Albedo = 0.8;
         Mat.Emission = 0.0;
     }
     
