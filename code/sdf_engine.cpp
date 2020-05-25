@@ -29,6 +29,7 @@ engine::UpdateAndRender(HWND Window, input *Input)
         PathTracePSO = InitComputePSO(D, L"../code/pathtrace.hlsl", "main");
         TemporalFilterPSO = InitComputePSO(D, L"../code/temporal_filter.hlsl", "main");
         CalcVariancePSO = InitComputePSO(D, L"../code/calc_variance.hlsl", "main");
+        PackGBufferPSO = InitComputePSO(D, L"../code/pack_gbuffer.hlsl", "main");
         SpatialFilterPSO = InitComputePSO(D, L"../code/spatial_filter.hlsl", "main");
         ToneMapPSO = InitComputePSO(D, L"../code/tonemap.hlsl", "main");
         
@@ -112,6 +113,14 @@ engine::UpdateAndRender(HWND Window, input *Input)
         D->CreateUnorderedAccessView(NextVarianceTex.Handle, 0, 0, 
                                      NextVarianceTex.UAV.CPUHandle);
         
+        GBufferTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                   DXGI_FORMAT_R32G32B32A32_FLOAT,
+                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        GBufferTex.UAV = UAVArena.PushDescriptor();
+        D->CreateUnorderedAccessView(GBufferTex.Handle, 0, 0, 
+                                     GBufferTex.UAV.CPUHandle);
+        
         IntegratedLightTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                            DXGI_FORMAT_R16G16B16A16_FLOAT,
                                            D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
@@ -190,6 +199,7 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->SetComputeRoot32BitConstants(3, 1, &FrameIndex, 2);
         CmdList->SetComputeRoot32BitConstants(3, 3, &Camera.P, 4);
         CmdList->SetComputeRoot32BitConstants(3, 3, &CamAt, 8);
+        CmdList->SetComputeRoot32BitConstants(3, 1, &Time, 11);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&LightTex);
@@ -226,9 +236,25 @@ engine::UpdateAndRender(HWND Window, input *Input)
         Context.UAVBarrier(&LumMomentTex);
         Context.FlushBarriers();
         
+        Context.CopyResourceBarriered(&LightHistTex, &IntegratedLightTex);
         Context.CopyResourceBarriered(&LumMomentHistTex, &LumMomentTex);
         Context.CopyResourceBarriered(&PositionHistTex, &PositionTex);
         Context.CopyResourceBarriered(&NormalHistTex, &NormalTex);
+    }
+    
+    // pack gbuffer
+    {
+        CmdList->SetPipelineState(PackGBufferPSO.Handle);
+        CmdList->SetComputeRootSignature(PackGBufferPSO.RootSignature);
+        CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
+        CmdList->SetComputeRootDescriptorTable(0, PositionTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(1, NormalTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(2, GBufferTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(3, 3, &Camera.P, 0);
+        CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
+        
+        Context.UAVBarrier(&GBufferTex);
+        Context.FlushBarriers();
     }
     
     // calc variance
@@ -239,9 +265,8 @@ engine::UpdateAndRender(HWND Window, input *Input)
         CmdList->SetComputeRootDescriptorTable(0, LumMomentTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, VarianceTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, IntegratedLightTex.UAV.GPUHandle);
-        CmdList->SetComputeRootDescriptorTable(3, PositionTex.UAV.GPUHandle);
-        CmdList->SetComputeRootDescriptorTable(4, NormalTex.UAV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(5, 3, &Camera.P, 0);
+        CmdList->SetComputeRootDescriptorTable(3, GBufferTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(4, 3, &Camera.P, 0);
         
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
@@ -267,14 +292,13 @@ engine::UpdateAndRender(HWND Window, input *Input)
             CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
             CmdList->SetComputeRootDescriptorTable(0, PingPongs[0]->UAV.GPUHandle);
             CmdList->SetComputeRootDescriptorTable(1, PingPongs[1]->UAV.GPUHandle);
-            CmdList->SetComputeRootDescriptorTable(2, PositionTex.UAV.GPUHandle);
-            CmdList->SetComputeRootDescriptorTable(3, NormalTex.UAV.GPUHandle);
-            CmdList->SetComputeRootDescriptorTable(4, Variances[0]->UAV.GPUHandle);
-            CmdList->SetComputeRootDescriptorTable(5, Variances[1]->UAV.GPUHandle);
-            CmdList->SetComputeRootDescriptorTable(6, LightHistTex.UAV.GPUHandle);
-            CmdList->SetComputeRoot32BitConstants(7, 3, &Camera.P, 0);
-            CmdList->SetComputeRoot32BitConstants(7, 1, &Depth, 3);
-            CmdList->SetComputeRoot32BitConstants(7, 1, &FilterStride, 4);
+            CmdList->SetComputeRootDescriptorTable(2, GBufferTex.UAV.GPUHandle);
+            CmdList->SetComputeRootDescriptorTable(3, Variances[0]->UAV.GPUHandle);
+            CmdList->SetComputeRootDescriptorTable(4, Variances[1]->UAV.GPUHandle);
+            CmdList->SetComputeRootDescriptorTable(5, LightHistTex.UAV.GPUHandle);
+            CmdList->SetComputeRoot32BitConstants(6, 3, &Camera.P, 0);
+            CmdList->SetComputeRoot32BitConstants(6, 1, &Depth, 3);
+            CmdList->SetComputeRoot32BitConstants(6, 1, &FilterStride, 4);
             CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
             
             Context.UAVBarrier(PingPongs[1]);
@@ -318,6 +342,7 @@ engine::UpdateAndRender(HWND Window, input *Input)
     
     Context.WaitForGpu();
     
+    Time += 1.0f/60.0f;
     FrameIndex += 1;
     PrevCamera = Camera;
 }

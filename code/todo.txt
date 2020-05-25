@@ -21,11 +21,18 @@
 -   variance-guidance [x]
 -   fallback strategy for disocclusion regions [x]
 -   feedback first-level wavelet to temporal filter [x]
--   better depth weight []
 -   optimize spatial filter []
+-   optimize calc variance []
+-   extract real depth []
+
+- TAA []
 
 - apply back first-hit BRDF []
 
-- AA []
-
 - shader hotload []
+
+- better light sampling []
+-   tiled blue noise []
+-   pixar's multi-jittered samples []
+
+- better depth weighting in spatial filter []

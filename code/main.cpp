@@ -13,7 +13,7 @@ Win32Panic(char *Fmt, ...)
     va_list Args;
     va_start(Args, Fmt);
     
-    char Buf[256];
+    char Buf[2048];
     vsnprintf(Buf, sizeof(Buf), Fmt, Args);
     va_end(Args);
     

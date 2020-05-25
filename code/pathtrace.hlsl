@@ -14,7 +14,7 @@ struct context
     float3 Ro;
     uint Pad2;
     float3 At;
-    uint Pad3;
+    float Time;
 };
 
 ConstantBuffer<context> Context: register(b0);
@@ -98,8 +98,7 @@ query Map(float3 P)
     
     float Floor = P.y;
     float Sculpt = Sculpture(P - float3(0, 1, 0));
-    //float Light = abs(P.x-10.0);
-    float Light = length(P - float3(0, 5, 0)) - 1.0;
+    float Light = abs(P.x - 10.0);
     Q.Dist = min(min(Floor, Sculpt), Light);
     
     if (Q.Dist == Floor)
@@ -139,7 +138,9 @@ material MapMaterial(int ObjId, float3 P)
     else if (ObjId == 2) // Light
     {
         Mat.Albedo = 1.0;
-        Mat.Emission = 5.0;
+        float K = 0.0;
+        if (P.y > 5.0 && P.y < 10.0) K = 3.0;
+        Mat.Emission = K * float3(frac(0.001*P.y), 1.0, frac(0.001*P.z));
     }
     else // invalid id
     {

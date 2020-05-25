@@ -43,6 +43,7 @@ struct engine
     pso PathTracePSO;
     pso TemporalFilterPSO;
     pso CalcVariancePSO;
+    pso PackGBufferPSO;
     pso SpatialFilterPSO;
     pso ToneMapPSO;
     
@@ -59,6 +60,7 @@ struct engine
     texture LumMomentHistTex;
     texture VarianceTex;
     texture NextVarianceTex;
+    texture GBufferTex;
     texture IntegratedLightTex;
     texture TempTex;
     
@@ -68,6 +70,7 @@ struct engine
     camera Camera;
     camera PrevCamera;
     
+    float Time;
     int FrameIndex;
     b32 IsInitialized;
     

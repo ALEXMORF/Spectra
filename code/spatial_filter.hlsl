@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), DescriptorTable(UAV(u6)), RootConstants(num32BitConstants=5, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), RootConstants(num32BitConstants=5, b0)"
 
 #include "math.hlsl"
 #include "edge_avoiding_functions.hlsl"
@@ -6,13 +6,12 @@
 RWTexture2D<float4> InputTex: register(u0);
 RWTexture2D<float4> OutputTex: register(u1);
 
-RWTexture2D<float4> PositionTex: register(u2);
-RWTexture2D<float4> NormalTex: register(u3);
+RWTexture2D<float4> GBufferTex: register(u2);
 
-RWTexture2D<float> VarianceTex: register(u4);
-RWTexture2D<float> NextVarianceTex: register(u5);
+RWTexture2D<float> VarianceTex: register(u3);
+RWTexture2D<float> NextVarianceTex: register(u4);
 
-RWTexture2D<float4> LightHistTex: register(u6);
+RWTexture2D<float4> LightHistTex: register(u5);
 
 struct context
 {
@@ -50,8 +49,11 @@ float FetchFilteredStdDeviation(int2 ThreadId)
 void main(uint2 ThreadId: SV_DispatchThreadID)
 {
     float4 CenterCol = InputTex[ThreadId];
-    float CenterDepth = length(Context.CamP - PositionTex[ThreadId].xyz);
-    float3 CenterNormal = NormalTex[ThreadId].xyz;
+    
+    float4 Geom = GBufferTex[ThreadId];
+    float3 CenterNormal = Geom.xyz;
+    float CenterDepth = Geom.w;
+    
     float StdDeviation = FetchFilteredStdDeviation(ThreadId);
     
     const float Kernel[3] = {3.0/8.0, 1.0/4.0, 1/16.0};
@@ -65,10 +67,13 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         {
             int2 Coord = int2(ThreadId) + Context.Stride * int2(dX, dY);
             float4 Tap = InputTex[Coord];
+            float4 TapGeom = GBufferTex[Coord];
+            
+            float3 TapNormal = TapGeom.xyz;
+            float TapDepth = TapGeom.w;
             
             float W = Kernel[abs(dX)]*Kernel[abs(dY)];
-            float TapDepth = length(Context.CamP - PositionTex[Coord].xyz);
-            float3 TapNormal = NormalTex[Coord].xyz;
+            
             W *= DepthWeight(CenterDepth, TapDepth);
             W *= NormalWeight(CenterNormal, TapNormal);
             W *= LumWeight(CenterCol, Tap, StdDeviation);

@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), RootConstants(num32BitConstants=3, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), RootConstants(num32BitConstants=3, b0)"
 
 #include "math.hlsl"
 #include "edge_avoiding_functions.hlsl"
@@ -7,8 +7,7 @@ RWTexture2D<float2> LumMomentTex: register(u0);
 RWTexture2D<float> VarianceTex: register(u1);
 
 RWTexture2D<float4> InputTex: register(u2);
-RWTexture2D<float4> PositionTex: register(u3);
-RWTexture2D<float4> NormalTex: register(u4);
+RWTexture2D<float4> GBufferTex: register(u3);
 
 struct context
 {
@@ -33,8 +32,9 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     }
     else // spatial variance estimation fallback
     {
-        float3 CenterN = NormalTex[ThreadId].xyz;
-        float CenterDepth = length(Context.CamP - PositionTex[ThreadId].xyz);
+        float4 Geom = GBufferTex[ThreadId];
+        float3 CenterN = Geom.xyz;
+        float CenterDepth = Geom.w;
         
         float Mean = 0;
         float Mean2 = 0;
@@ -44,9 +44,11 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
             for (int dX = -3; dX <= 3; ++dX)
             {
                 int2 Coord = int2(ThreadId) + int2(dX, dY);
-                float3 TapN = NormalTex[Coord].xyz;
-                float TapDepth = length(Context.CamP - PositionTex[Coord].xyz);
+                float4 TapGeom = GBufferTex[Coord];
                 float3 Tap = InputTex[Coord].rgb;
+                
+                float3 TapN = TapGeom.xyz;
+                float TapDepth = TapGeom.w;
                 float TapLum = CalcLuminance(Tap);
                 
                 float W = DepthWeight(CenterDepth, TapDepth);
