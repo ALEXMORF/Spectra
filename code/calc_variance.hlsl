@@ -67,7 +67,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         }
         
         float Variance = abs(Mean2 - Mean*Mean);
-        Variance *= 16.0; // boost to prevent underestimation
+        Variance *= 100.0; // boost to prevent underestimation
         VarianceTex[ThreadId] = Variance;
     }
 }

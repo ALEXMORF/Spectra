@@ -11,7 +11,7 @@
 -   import math code [x]
 -   camera control [x]
 
-- denoiser []
+- denoiser [x]
 -   output aux buffer [x]
 -   temporal filter [x]
 -   spatial filter [x]
@@ -21,9 +21,7 @@
 -   variance-guidance [x]
 -   fallback strategy for disocclusion regions [x]
 -   feedback first-level wavelet to temporal filter [x]
--   optimize spatial filter []
--   optimize calc variance []
--   extract real depth []
+-   optimize spatial filter [x]
 
 - TAA []
 

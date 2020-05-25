@@ -54,7 +54,7 @@ float3 SampleHemisphereCosineWeighted(float3 N)
     return X*XAxis + Y*YAxis + Z*N;
 }
 
-struct query
+struct point_query
 {
     float Dist;
     int MatId;
@@ -92,13 +92,13 @@ float Sculpture(float3 p)
     return 0.1 * (length(p) - 1.0);
 }
 
-query Map(float3 P)
+point_query Map(float3 P)
 {
-    query Q;
+    point_query Q;
     
     float Floor = P.y;
     float Sculpt = Sculpture(P - float3(0, 1, 0));
-    float Light = abs(P.x - 10.0);
+    float Light = -(P.x - 10.0);
     Q.Dist = min(min(Floor, Sculpt), Light);
     
     if (Q.Dist == Floor)
@@ -178,7 +178,7 @@ hit RayTrace(float3 Ro, float3 Rd)
     int Iter = 0;
     for (Iter = 0; Iter < 512 && T < T_MAX; ++Iter)
     {
-        query Q = Map(Ro + T*Rd);
+        point_query Q = Map(Ro + T*Rd);
         if (Q.Dist < 0.001)
         {
             MatId = Q.MatId;

@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), DescriptorTable(UAV(u6)), DescriptorTable(UAV(u7)), DescriptorTable(UAV(u8)), RootConstants(num32BitConstants=14, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), DescriptorTable(UAV(u6)), DescriptorTable(UAV(u7)), DescriptorTable(UAV(u8)), RootConstants(num32BitConstants=18, b0)"
 
 #include "math.hlsl"
 
@@ -22,6 +22,8 @@ struct context
     
     float4 PrevCamInvQuat;
     
+    float4 CamInvQuat;
+    
     float3 CamP;
     uint Pad;
     
@@ -37,21 +39,21 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
 {
     float3 P = PositionTex[ThreadId].xyz;
     float3 CurrN = NormalTex[ThreadId].xyz;
-    float3 ClipP = qrot(P - Context.PrevCamP, Context.PrevCamInvQuat);
-    float2 UV = ClipP.xy / ClipP.z * 1.7;
-    UV.y = -UV.y;
-    UV.x /= float(Context.Width) / float(Context.Height);
-    float2 HistPixelId = (0.5 * UV + 0.5) * float2(Context.Width,
-                                                   Context.Height);
+    float3 PrevViewP = CalcViewP(P, Context.PrevCamP, Context.PrevCamInvQuat);
+    float2 PrevUV = PrevViewP.xy / PrevViewP.z * 1.7;
+    PrevUV.y = -PrevUV.y;
+    PrevUV.x /= float(Context.Width) / float(Context.Height);
+    float2 PrevPixelId = (0.5 * PrevUV + 0.5) * float2(Context.Width,
+                                                       Context.Height);
     
     float CenterLum = CalcLuminance(InputTex[ThreadId].rgb);
     float2 LumMoments = float2(CenterLum, CenterLum * CenterLum);
     
     if (Context.FrameIndex != 0 || 
-        any(HistPixelId < 0.0 || HistPixelId > float2(Context.Width-1, Context.Height-1)))
+        any(PrevPixelId < 0.0 || PrevPixelId > float2(Context.Width-1, Context.Height-1)))
     {
-        float2 Interp = frac(HistPixelId);
-        int2 PixelCoord = floor(HistPixelId);
+        float2 Interp = frac(PrevPixelId);
+        int2 PrevPixelCoord = floor(PrevPixelId);
         
         float MinSampleCount = 10e31;
         float2 LumMomentHist = 0;
@@ -61,7 +63,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         {
             for (int dX = 0; dX <= 1; ++dX)
             {
-                int2 TapCoord = PixelCoord + int2(dX, dY);
+                int2 TapCoord = PrevPixelCoord + int2(dX, dY);
                 float3 PrevN = NormalHistTex[TapCoord].xyz;
                 float3 PrevP = PositionHistTex[TapCoord].xyz;
                 float PrevDepth = length(Context.CamP - PrevP);
