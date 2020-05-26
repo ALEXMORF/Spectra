@@ -1,5 +1,6 @@
 #include "sdf_engine.cpp"
 
+#include <string.h>
 #include <stdio.h>
 #include "ShellScalingAPI.h"
 #include <windows.h>
@@ -125,7 +126,8 @@ Win32WindowCallback(HWND Window, UINT Message,
     return Result;
 }
 
-FILETIME GetLastWriteTime(char *FilePath)
+internal FILETIME 
+GetLastWriteTime(char *FilePath)
 {
     FILETIME Result = {};
     
@@ -140,6 +142,59 @@ FILETIME GetLastWriteTime(char *FilePath)
     }
     
     return Result;
+}
+
+struct file_tracker
+{
+    FILETIME LastWriteTime;
+    char Path[256];
+};
+
+global file_tracker gFileTrackers[1000];
+global int gFileTrackerCount;
+
+internal void
+TrackAllCodeFiles()
+{
+    WIN32_FIND_DATA Entry;
+    HANDLE find = FindFirstFile("../code/*.*", &Entry);
+    if (find != INVALID_HANDLE_VALUE)
+    {
+        do 
+        {
+            printf("Name: %s ", Entry.cFileName);
+            
+            if (Entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) 
+            {
+                // directory
+            } 
+            else 
+            {
+                size_t FilenameLen = strlen(Entry.cFileName);
+                if (FilenameLen >= 5)
+                {
+                    char *Suffix = Entry.cFileName + FilenameLen - 5;
+                    if (strncmp(Suffix, ".hlsl", 5) == 0)
+                    {
+                        if (gFileTrackerCount == ARRAY_COUNT(gFileTrackers))
+                        {
+                            Win32Panic("Internal Error: File write-time tracker reached maximum count of 1000");
+                        }
+                        
+                        int CurrTrackerIndex = gFileTrackerCount++;
+                        file_tracker *Tracker = gFileTrackers + CurrTrackerIndex;
+                        
+                        snprintf(Tracker->Path, sizeof(Tracker->Path),
+                                 "../code/%s", Entry.cFileName);
+                        Tracker->LastWriteTime = GetLastWriteTime(Tracker->Path);
+                    }
+                }
+            }
+            
+        } while (FindNextFile(find, &Entry));
+        
+        FindClose(find);
+    }
 }
 
 int CALLBACK
@@ -185,8 +240,7 @@ WinMain(HINSTANCE Instance,
         
         engine Engine = {};
         
-        char *HotCodeFilename = "../code/scene.hlsl";
-        FILETIME SceneFileLastWriteTime = GetLastWriteTime(HotCodeFilename);
+        TrackAllCodeFiles();
         
         while (!gAppIsDone)
         {
@@ -199,10 +253,17 @@ WinMain(HINSTANCE Instance,
                 DispatchMessage(&Message);
             }
             
-            FILETIME LastWriteTime = GetLastWriteTime(HotCodeFilename);
-            int CmpRes = CompareFileTime(&SceneFileLastWriteTime, &LastWriteTime);
-            b32 NeedsReload = CmpRes != 0;
-            if (NeedsReload) SceneFileLastWriteTime = LastWriteTime;
+            b32 NeedsReload = false;
+            for (int TrackerI = 0; TrackerI < gFileTrackerCount; ++TrackerI)
+            {
+                file_tracker *Tracker = gFileTrackers + TrackerI;
+                FILETIME CurrWriteTime = GetLastWriteTime(Tracker->Path);
+                if (CompareFileTime(&CurrWriteTime, &Tracker->LastWriteTime) != 0)
+                {
+                    NeedsReload = true;
+                    Tracker->LastWriteTime = CurrWriteTime;
+                }
+            }
             
             Engine.UpdateAndRender(Window, &gInput, NeedsReload);
             

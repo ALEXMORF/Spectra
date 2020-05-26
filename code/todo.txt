@@ -37,6 +37,8 @@
 - shader hotload []
 -   timestamp check & reload [x]
 -   basic leak & reload [x]
+-   hook reload into all hlsl files [x]
+-   fail to open file bug []
 -   gracefully reload []
 -   gracefully spit error msg []
 
