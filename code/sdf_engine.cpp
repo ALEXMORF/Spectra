@@ -26,15 +26,15 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         
         UAVArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         
-        PathTracePSO = InitComputePSO(D, L"../code/pathtrace.hlsl", "main");
-        TemporalFilterPSO = InitComputePSO(D, L"../code/temporal_filter.hlsl", "main");
-        CalcVariancePSO = InitComputePSO(D, L"../code/calc_variance.hlsl", "main");
-        PackGBufferPSO = InitComputePSO(D, L"../code/pack_gbuffer.hlsl", "main");
-        CorrelateHistoryPSO = InitComputePSO(D, L"../code/correlate_history.hlsl", "main");
-        SpatialFilterPSO = InitComputePSO(D, L"../code/spatial_filter.hlsl", "main");
-        ApplyPrimaryShadingPSO = InitComputePSO(D, L"../code/apply_primary_shading.hlsl", "main");
-        TaaPSO = InitComputePSO(D, L"../code/taa.hlsl", "main");
-        ToneMapPSO = InitComputePSO(D, L"../code/tonemap.hlsl", "main");
+        PathTracePSO = InitComputePSO(D, "../code/pathtrace.hlsl", "main");
+        TemporalFilterPSO = InitComputePSO(D, "../code/temporal_filter.hlsl", "main");
+        CalcVariancePSO = InitComputePSO(D, "../code/calc_variance.hlsl", "main");
+        PackGBufferPSO = InitComputePSO(D, "../code/pack_gbuffer.hlsl", "main");
+        CorrelateHistoryPSO = InitComputePSO(D, "../code/correlate_history.hlsl", "main");
+        SpatialFilterPSO = InitComputePSO(D, "../code/spatial_filter.hlsl", "main");
+        ApplyPrimaryShadingPSO = InitComputePSO(D, "../code/apply_primary_shading.hlsl", "main");
+        TaaPSO = InitComputePSO(D, "../code/taa.hlsl", "main");
+        ToneMapPSO = InitComputePSO(D, "../code/tonemap.hlsl", "main");
         
         LightTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                  DXGI_FORMAT_R16G16B16A16_FLOAT,
@@ -206,8 +206,8 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     {
         ID3D12Device *D = Context.Device;
         
-        PathTracePSO = InitComputePSO(D, L"../code/pathtrace.hlsl", "main");
-        ApplyPrimaryShadingPSO = InitComputePSO(D, L"../code/apply_primary_shading.hlsl", "main");
+        PathTracePSO = InitComputePSO(D, "../code/pathtrace.hlsl", "main");
+        ApplyPrimaryShadingPSO = InitComputePSO(D, "../code/apply_primary_shading.hlsl", "main");
         
         FrameIndex = 0;
     }

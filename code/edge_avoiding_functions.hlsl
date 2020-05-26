@@ -15,7 +15,7 @@ float LumWeight(float4 CenterCol, float4 SampleCol, float StdDeviation)
     float CenterLum = CalcLuminance(CenterCol.rgb);
     float SampleLum = CalcLuminance(SampleCol.rgb);
     
-    float Epsilon = 0.000001;
+    float Epsilon = 0.0000001;
     float Alpha = 4.0;
     return exp(-abs(CenterLum - SampleLum) / (Alpha*StdDeviation + Epsilon));
 }

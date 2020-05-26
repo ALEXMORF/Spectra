@@ -38,8 +38,8 @@
 -   timestamp check & reload [x]
 -   basic leak & reload [x]
 -   hook reload into all hlsl files [x]
--   fail to open file bug []
 -   gracefully reload []
+-   fail to open file bug []
 -   gracefully spit error msg []
 
 - light transport solidify []

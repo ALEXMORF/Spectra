@@ -1,4 +1,5 @@
 #pragma once
+#include <stdio.h>
 
 #define DXOP(Value) ASSERT(SUCCEEDED(Value))
 
@@ -255,18 +256,44 @@ descriptor_arena::PushDescriptor()
 // pipeline states
 
 internal pso
-InitComputePSO(ID3D12Device *D, LPCWSTR Filename, char *EntryPoint)
+InitComputePSO(ID3D12Device *D, char *Filename, char *EntryPoint)
 {
     pso PSO = {};
     
+    FILE *File = fopen(Filename, "rb");
+    if (!File)
+    {
+        Win32Panic("Failed to load shader file: %s", Filename);
+        return PSO;
+    }
+    
+    fseek(File, 0, SEEK_END);
+    int FileSize = ftell(File);
+    rewind(File);
+    void *FileData = calloc(FileSize+1, 1);
+    fread(FileData, 1, FileSize, File);
+    fclose(File);
+    
+    //NOTE(chen): for whatever reason, d3d compiler's preprocessor is really
+    //            bad at fetching include files. Numerously times it fails to
+    //            open include files when the file are already there ...
+    int MaxAttempt = 100;
+    int Attempts = 0;
     ID3DBlob *CodeBlob; 
     ID3DBlob *ErrorBlob;
-    if (FAILED(D3DCompileFromFile(Filename, 0, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-                                  EntryPoint, "cs_5_1", 0, 0,
-                                  &CodeBlob, &ErrorBlob)))
+    while (FAILED(D3DCompile(FileData, FileSize, Filename,
+                             0, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+                             EntryPoint, "cs_5_1", 0, 0,
+                             &CodeBlob, &ErrorBlob)))
     {
-        char *ErrorMsg = (char *)ErrorBlob->GetBufferPointer();
-        Win32Panic("Shader compile error: %s", ErrorMsg);
+        ErrorBlob->Release();
+        Attempts += 1;
+        if (Attempts == MaxAttempt)
+        {
+            char *ErrorMsg = (char *)ErrorBlob->GetBufferPointer();
+            Win32Panic("Shader compile error: %s", ErrorMsg);
+            break;
+        }
     }
     
     ID3D12RootSignatureDeserializer *RSExtractor = 0;
