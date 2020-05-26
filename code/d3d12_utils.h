@@ -255,6 +255,57 @@ descriptor_arena::PushDescriptor()
 //
 // pipeline states
 
+internal b32
+VerifyComputeShader(char *Filename, char *EntryPoint)
+{
+    FILE *File = fopen(Filename, "rb");
+    if (!File)
+    {
+        Win32MessageBox("Shader Load Failure", MB_OK|MB_ICONERROR, 
+                        "Failed to load shader %s", Filename);
+        return false;
+    }
+    
+    fseek(File, 0, SEEK_END);
+    int FileSize = ftell(File);
+    rewind(File);
+    void *FileData = calloc(FileSize+1, 1);
+    fread(FileData, 1, FileSize, File);
+    fclose(File);
+    
+    //NOTE(chen): for whatever reason, d3d compiler's preprocessor is really
+    //            bad at fetching include files. Numerously times it fails to
+    //            open include files when the file are already there ...
+    //
+    //            this especially poses a problem with shader hotloading
+    int MaxAttempt = 10;
+    int Attempts = 0;
+    ID3DBlob *CodeBlob; 
+    ID3DBlob *ErrorBlob;
+    while (FAILED(D3DCompile(FileData, FileSize, Filename,
+                             0, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+                             EntryPoint, "cs_5_1", 0, 0,
+                             &CodeBlob, &ErrorBlob)))
+    {
+        if (Attempts == MaxAttempt)
+        {
+            char *ErrorMsg = (char *)ErrorBlob->GetBufferPointer();
+            Win32MessageBox("Shader Compile Error", MB_OK|MB_ICONERROR, "%s", ErrorMsg);
+            ErrorBlob->Release();
+            return false;
+        }
+        
+        ErrorBlob->Release();
+        Sleep(1); // try wait for file to come back online ....
+        Attempts += 1;
+    }
+    
+    CodeBlob->Release();
+    free(FileData);
+    
+    return true;
+}
+
 internal pso
 InitComputePSO(ID3D12Device *D, char *Filename, char *EntryPoint)
 {
@@ -277,7 +328,9 @@ InitComputePSO(ID3D12Device *D, char *Filename, char *EntryPoint)
     //NOTE(chen): for whatever reason, d3d compiler's preprocessor is really
     //            bad at fetching include files. Numerously times it fails to
     //            open include files when the file are already there ...
-    int MaxAttempt = 100;
+    //
+    //            this especially poses a problem with shader hotloading
+    int MaxAttempt = 10;
     int Attempts = 0;
     ID3DBlob *CodeBlob; 
     ID3DBlob *ErrorBlob;
@@ -286,15 +339,19 @@ InitComputePSO(ID3D12Device *D, char *Filename, char *EntryPoint)
                              EntryPoint, "cs_5_1", 0, 0,
                              &CodeBlob, &ErrorBlob)))
     {
-        ErrorBlob->Release();
-        Attempts += 1;
         if (Attempts == MaxAttempt)
         {
             char *ErrorMsg = (char *)ErrorBlob->GetBufferPointer();
             Win32Panic("Shader compile error: %s", ErrorMsg);
             break;
         }
+        
+        ErrorBlob->Release();
+        Sleep(1); // try wait for file to come back online ....
+        Attempts += 1;
     }
+    
+    free(FileData);
     
     ID3D12RootSignatureDeserializer *RSExtractor = 0;
     DXOP(D3D12CreateRootSignatureDeserializer(CodeBlob->GetBufferPointer(),

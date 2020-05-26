@@ -34,13 +34,12 @@
 -   apply primary emission [x]
 -   apply Env() on sky [x]
 
-- shader hotload []
+- shader hotload [x]
 -   timestamp check & reload [x]
 -   basic leak & reload [x]
 -   hook reload into all hlsl files [x]
--   gracefully reload []
--   fail to open file bug []
--   gracefully spit error msg []
+-   gracefully reload [x]
+-   semi-gracefully spit error msg ... [x]
 
 - light transport solidify []
 -   do I need cosine term after cosine-weighted sampling? []

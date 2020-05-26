@@ -206,8 +206,15 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     {
         ID3D12Device *D = Context.Device;
         
-        PathTracePSO = InitComputePSO(D, "../code/pathtrace.hlsl", "main");
-        ApplyPrimaryShadingPSO = InitComputePSO(D, "../code/apply_primary_shading.hlsl", "main");
+        b32 ShadersAreValid = true;
+        if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/pathtrace.hlsl", "main");
+        if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/apply_primary_shading.hlsl", "main");
+        
+        if (ShadersAreValid)
+        {
+            PathTracePSO = InitComputePSO(D, "../code/pathtrace.hlsl", "main");
+            ApplyPrimaryShadingPSO = InitComputePSO(D, "../code/apply_primary_shading.hlsl", "main");
+        }
         
         FrameIndex = 0;
     }
