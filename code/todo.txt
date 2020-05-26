@@ -42,7 +42,6 @@
 -   semi-gracefully spit error msg ... [x]
 
 - light transport solidify []
--   do I need cosine term after cosine-weighted sampling? []
 -   pi or not pi []
 
 - ditter []

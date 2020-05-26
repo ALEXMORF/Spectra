@@ -160,7 +160,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
                 Radiance += Attenuation * Mat.Emission;
             }
             
-            float3 Brdf = Mat.Albedo/Pi * clamp(dot(HitN, -Rd), 0.0, 1.0);
+            float3 Brdf = Mat.Albedo/Pi;
             if (Depth == 0)
             {
                 //NOTE(chen): don't apply primary surface Brdf, only
