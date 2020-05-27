@@ -7,7 +7,7 @@ float DepthWeight(float CenterDepth, float SampleDepth)
 
 float NormalWeight(float3 CenterNormal, float3 SampleNormal)
 {
-    return pow(max(0.0, dot(CenterNormal, SampleNormal)), 128.0);
+    return pow(max(0.0, dot(CenterNormal, SampleNormal)), 32.0);
 }
 
 float LumWeight(float4 CenterCol, float4 SampleCol, float StdDeviation)

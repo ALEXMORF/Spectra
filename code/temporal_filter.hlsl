@@ -59,7 +59,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
                 float PrevDepth = length(Context.CamP - PrevP);
                 float CurrDepth = length(Context.CamP - P);
                 if (abs(1.0 - CurrDepth/PrevDepth) < 0.1 &&
-                    dot(CurrN, PrevN) >= 0.9)
+                    dot(CurrN, PrevN) >= 0.99)
                 {
                     float2 Bilinear = lerp(1.0-Interp, Interp, float2(dX, dY));
                     float W = Bilinear.x * Bilinear.y;

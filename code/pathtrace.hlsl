@@ -173,7 +173,6 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
             Attenuation *= Brdf;
             
             Ro = HitP + 0.01*HitN;
-            //float2 R = Rand2();
             float2 R = BlueNoiseTexs[Context.FrameIndex & 63][ThreadId & 63].rg;
             Rd = SampleHemisphereCosineWeighted(HitN, R);
         }

@@ -43,12 +43,16 @@
 
 - load blue noise textures [x]
 - ditter to remove banding [x]
-- light sampling with blue noise [x]
 
-- halton TAA sampling []
+- halton TAA sampling [x]
+
+- light sampling with blue noise []
+-   sampling blue-noise for first bounce [x]
+-   alter noise for subsequent bounces []
 
 - shoot more rays in disoccluded area []
 
 - multi-temporal-filter approach []
 
-- better depth weighting in spatial filter []
+- directional light source []
+- volumetric lighting []

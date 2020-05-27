@@ -28,9 +28,11 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         Col = NoisyCol;
     }
     
+    Col *= 1.0;
     Col = Col/(1.0+Col);
     Col = sqrt(Col);
     
+    // dither to remove banding
     float R = BlueNoiseTexs[Context.FrameIndex & 63][ThreadId & 63].r;
     Col += R * (1.0/255.0);
     
