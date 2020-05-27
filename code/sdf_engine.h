@@ -74,6 +74,7 @@ struct engine
     texture TempTex;
     
     // TAA data
+    v2 HaltonSequence[8];
     texture TaaHistTex;
     texture TaaOutputTex;
     

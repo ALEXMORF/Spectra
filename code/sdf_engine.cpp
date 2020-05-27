@@ -1,5 +1,26 @@
 #include "sdf_engine.h"
 
+// pbrt's implementation
+f32 RadicalInverse(u64 Index, int Base)
+{
+    f32 Result = 0.0f;
+    
+    f32 InvBase = 1.0f / f32(Base);
+    u64 A = Index;
+    u64 ReversedDigits = 0;
+    f32 InvBaseN = 1.0f;
+    while (A)
+    {
+        u64 Next = A / Base;
+        u64 Digit = A - Next * Base;
+        ReversedDigits = ReversedDigits * Base + Digit;
+        InvBaseN *= InvBase;
+        A = Next;
+    }
+    
+    return ReversedDigits * InvBaseN;
+}
+
 void
 engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
 {
@@ -171,6 +192,12 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         Camera.P = {0.0f, 1.2f, -4.0f};
         Camera.Orientation = Quaternion();
         
+        for (u64 I = 0; I < ARRAY_COUNT(HaltonSequence); ++I)
+        {
+            HaltonSequence[I].X = RadicalInverse(I+1, 2);
+            HaltonSequence[I].Y = RadicalInverse(I+1, 3);
+        }
+        
         IsInitialized = true;
     }
     
@@ -225,6 +252,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     
     v3 CamOffset = Rotate(ZAxis(), Camera.Orientation);
     v3 CamAt = Camera.P + CamOffset;
+    v2 PixelOffset = V2(-0.5f) + HaltonSequence[FrameIndex % ARRAY_COUNT(HaltonSequence)];
     
     if (Input->Keys['N']) SwitchViewThreshold -= 10;
     if (Input->Keys['M']) SwitchViewThreshold += 10;
@@ -249,6 +277,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->SetComputeRoot32BitConstants(7, 3, &Camera.P, 4);
         CmdList->SetComputeRoot32BitConstants(7, 3, &CamAt, 8);
         CmdList->SetComputeRoot32BitConstants(7, 1, &Time, 11);
+        CmdList->SetComputeRoot32BitConstants(7, 2, &PixelOffset, 12);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&LightTex);
@@ -292,6 +321,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->SetComputeRoot32BitConstants(2, 1, &Width, 8);
         CmdList->SetComputeRoot32BitConstants(2, 1, &Height, 9);
         CmdList->SetComputeRoot32BitConstants(2, 1, &FrameIndex, 10);
+        CmdList->SetComputeRoot32BitConstants(2, 2, &PixelOffset, 12);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&PrevPixelIdTex);

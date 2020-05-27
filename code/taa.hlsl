@@ -12,6 +12,7 @@ struct context
     int FrameIndex;
     int Width;
     int Height;
+    uint Pad;
 };
 
 ConstantBuffer<context> Context: register(b0);

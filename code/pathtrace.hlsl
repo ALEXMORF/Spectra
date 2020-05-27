@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), DescriptorTable(SRV(t0, numDescriptors=64)), RootConstants(num32BitConstants=12, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), DescriptorTable(SRV(t0, numDescriptors=64)), RootConstants(num32BitConstants=14, b0)"
 
 #include "constants.hlsl"
 #include "scene.hlsl"
@@ -24,6 +24,8 @@ struct context
     uint Pad2;
     float3 At;
     float Time;
+    
+    float2 PixelOffset;
 };
 
 ConstantBuffer<context> Context: register(b0);
@@ -101,10 +103,7 @@ float3 Tonemap(float3 Col)
 [numthreads(32, 32, 1)]
 void main(uint2 ThreadId: SV_DispatchThreadID)
 {
-    gSeed = float(Context.FrameIndex)+1.0;
-    float2 Jitter = Rand2() - 0.5;
-    
-    float2 UV = (float2(ThreadId) + 0.5 + Jitter) / float2(Context.Width, Context.Height);
+    float2 UV = (float2(ThreadId) + 0.5 + Context.PixelOffset) / float2(Context.Width, Context.Height);
     UV = 2.0 * UV - 1.0;
     UV.y = -UV.y;
     UV.x *= float(Context.Width)/float(Context.Height);
