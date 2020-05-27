@@ -41,16 +41,13 @@
 -   gracefully reload [x]
 -   semi-gracefully spit error msg ... [x]
 
-- light transport solidify []
--   pi or not pi []
+- load blue noise textures [x]
+- ditter to remove banding [x]
+- light sampling with blue noise [x]
 
-- ditter []
+- halton TAA sampling []
 
-- better TAA sampling []
-
-- better light sampling []
--   blue noise []
--   progressive multi-jittering (pmj) []
+- shoot more rays in disoccluded area []
 
 - multi-temporal-filter approach []
 

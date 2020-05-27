@@ -1,5 +1,7 @@
 #pragma once
 #include <stdio.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 #define DXOP(Value) ASSERT(SUCCEEDED(Value))
 
@@ -34,7 +36,6 @@ struct texture
     
     descriptor UAV;
     descriptor SRV;
-    descriptor RTV;
 };
 
 struct gpu_context
@@ -57,6 +58,10 @@ struct gpu_context
     void TransitionBarrier(texture *Tex, D3D12_RESOURCE_STATES NewState);
     void FlushBarriers();
     void CopyResourceBarriered(texture *Dest, texture *Source);
+    
+    texture LoadTexture2D(char *Filename, DXGI_FORMAT Format, 
+                          D3D12_RESOURCE_FLAGS Flags, 
+                          D3D12_RESOURCE_STATES ResourceStates);
     
     void _PushToBarrierCache(D3D12_RESOURCE_BARRIER Barrier);
 };
@@ -384,6 +389,51 @@ InitComputePSO(ID3D12Device *D, char *Filename, char *EntryPoint)
 
 //
 //
+// boilerplates
+
+internal D3D12_HEAP_PROPERTIES
+DefaultHeapProps(D3D12_HEAP_TYPE Type)
+{
+    D3D12_HEAP_PROPERTIES HeapProps = {};
+    HeapProps.Type = Type;
+    HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+    HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    return HeapProps;
+}
+
+//
+// 
+// buffers
+
+internal ID3D12Resource *
+InitBuffer(ID3D12Device *D, size_t ByteCount,
+           D3D12_HEAP_TYPE HeapType,
+           D3D12_RESOURCE_STATES InitialState,
+           D3D12_RESOURCE_FLAGS Flags)
+{
+    ID3D12Resource *Buffer = 0;
+    
+    D3D12_HEAP_PROPERTIES HeapProps = DefaultHeapProps(HeapType);
+    D3D12_RESOURCE_DESC ResourceDesc = {};
+    ResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+    ResourceDesc.Width = ByteCount;
+    ResourceDesc.Height = 1;
+    ResourceDesc.DepthOrArraySize = 1;
+    ResourceDesc.MipLevels = 1;
+    ResourceDesc.Format = DXGI_FORMAT_UNKNOWN;
+    ResourceDesc.SampleDesc = {1, 0};
+    ResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+    ResourceDesc.Flags = Flags;
+    
+    DXOP(D->CreateCommittedResource(&HeapProps, D3D12_HEAP_FLAG_NONE,
+                                    &ResourceDesc, InitialState, 0,
+                                    IID_PPV_ARGS(&Buffer)));
+    
+    return Buffer;
+}
+
+//
+//
 // textures
 
 internal texture
@@ -402,10 +452,7 @@ InitTexture2D(ID3D12Device *D, int Width, int Height, DXGI_FORMAT Format,
     texture Tex = {};
     Tex.ResourceState = ResourceState;
     
-    D3D12_HEAP_PROPERTIES HeapProps = {};
-    HeapProps.Type = D3D12_HEAP_TYPE_DEFAULT;
-    HeapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-    HeapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+    D3D12_HEAP_PROPERTIES HeapProps = DefaultHeapProps(D3D12_HEAP_TYPE_DEFAULT);
     D3D12_RESOURCE_DESC ResourceDesc = {};
     ResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
     ResourceDesc.Width = Width;
@@ -421,4 +468,91 @@ InitTexture2D(ID3D12Device *D, int Width, int Height, DXGI_FORMAT Format,
                                     IID_PPV_ARGS(&Tex.Handle)));
     
     return Tex;
+}
+
+texture gpu_context::LoadTexture2D(char *Filename, DXGI_FORMAT Format,
+                                   D3D12_RESOURCE_FLAGS Flags, D3D12_RESOURCE_STATES ResourceState)
+{
+    int Width, Height, ChannelCount;
+    u8 *ImageData = stbi_load(Filename, &Width, &Height, &ChannelCount, 0);
+    
+    //TODO(chen): this routine doesn't handle arb texel formats,
+    //            assert this fact here
+    ASSERT(Format == DXGI_FORMAT_R8G8B8A8_UNORM);
+    ASSERT(ChannelCount == 4);
+    
+    texture Tex = InitTexture2D(Device, Width, Height, Format, Flags, D3D12_RESOURCE_STATE_COPY_DEST);
+    
+    D3D12_PLACED_SUBRESOURCE_FOOTPRINT Footprint = {};
+    
+    D3D12_RESOURCE_DESC ResourceDesc = Tex.Handle->GetDesc();
+    Device->GetCopyableFootprints(&ResourceDesc, 0, 1, 0, &Footprint, 0, 0, 0);
+    int RowPitch = Footprint.Footprint.RowPitch;
+    
+    size_t PaddedTexDataSize = Height * RowPitch;
+    u32 *PaddedTexData = (u32 *)calloc(PaddedTexDataSize, 1);
+    for (int Y = 0; Y < Height; ++Y)
+    {
+        for (int X = 0; X < Width; ++X)
+        {
+            PaddedTexData[X + Y*(RowPitch/sizeof(u32))] = ((u32 *)ImageData)[X + Y*Height];
+        }
+    }
+    
+    ID3D12Resource *StagingBuffer = InitBuffer(Device, 
+                                               PaddedTexDataSize,
+                                               D3D12_HEAP_TYPE_UPLOAD,
+                                               D3D12_RESOURCE_STATE_GENERIC_READ,
+                                               D3D12_RESOURCE_FLAG_NONE);
+    D3D12_RANGE ReadRange = {};
+    void *MappedAddr = 0;
+    DXOP(StagingBuffer->Map(0, &ReadRange, &MappedAddr));
+    
+    memcpy(MappedAddr, PaddedTexData, PaddedTexDataSize);
+    
+    D3D12_RANGE WriteRange = {0, PaddedTexDataSize};
+    StagingBuffer->Unmap(0, &WriteRange);
+    
+    Reset();
+    
+    D3D12_TEXTURE_COPY_LOCATION DestLocation = {};
+    DestLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+    DestLocation.pResource = Tex.Handle;
+    DestLocation.SubresourceIndex = 0;
+    
+    D3D12_TEXTURE_COPY_LOCATION SourceLocation = {};
+    SourceLocation.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+    SourceLocation.pResource = StagingBuffer;
+    SourceLocation.PlacedFootprint = Footprint;
+    
+    CmdList->CopyTextureRegion(&DestLocation, 0, 0, 0, &SourceLocation, 0);
+    
+    TransitionBarrier(&Tex, ResourceState);
+    FlushBarriers();
+    
+    DXOP(CmdList->Close());
+    ID3D12CommandList *CmdLists[] = {CmdList};
+    CmdQueue->ExecuteCommandLists(1, CmdLists);
+    WaitForGpu();
+    
+    StagingBuffer->Release();
+    stbi_image_free(ImageData);
+    free(PaddedTexData);
+    
+    return Tex;
+}
+
+internal void
+AssignUAV(ID3D12Device *D, texture *Tex, descriptor_arena *Arena)
+{
+    Tex->UAV = Arena->PushDescriptor();
+    D->CreateUnorderedAccessView(Tex->Handle, 0, 0, 
+                                 Tex->UAV.CPUHandle);
+}
+
+internal void
+AssignSRV(ID3D12Device *D, texture *Tex, descriptor_arena *Arena)
+{
+    Tex->SRV = Arena->PushDescriptor();
+    D->CreateShaderResourceView(Tex->Handle, 0, Tex->SRV.CPUHandle);
 }

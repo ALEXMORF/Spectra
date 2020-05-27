@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), RootConstants(num32BitConstants=12, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), DescriptorTable(UAV(u5)), DescriptorTable(SRV(t0, numDescriptors=64)), RootConstants(num32BitConstants=12, b0)"
 
 #include "constants.hlsl"
 #include "scene.hlsl"
@@ -10,6 +10,8 @@ RWTexture2D<float4> NormalTex: register(u2);
 RWTexture2D<float4> AlbedoTex: register(u3);
 RWTexture2D<float4> EmissionTex: register(u4);
 RWTexture2D<float4> RayDirTex: register(u5);
+
+Texture2D<float4> BlueNoiseTexs[64]: register(t0);
 
 struct context
 {
@@ -26,7 +28,7 @@ struct context
 
 ConstantBuffer<context> Context: register(b0);
 
-float3 SampleHemisphereCosineWeighted(float3 N)
+float3 SampleHemisphereCosineWeighted(float3 N, float2 R)
 {
     float3 XAxis;
     if (abs(N.y) > 0.99)
@@ -40,7 +42,6 @@ float3 SampleHemisphereCosineWeighted(float3 N)
     
     float3 YAxis = cross(N, XAxis);
     
-    float2 R = Rand2();
     float Radius = sqrt(R.x);
     float Angle = R.y * 2.0 * Pi;
     
@@ -173,7 +174,9 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
             Attenuation *= Brdf;
             
             Ro = HitP + 0.01*HitN;
-            Rd = SampleHemisphereCosineWeighted(HitN);
+            //float2 R = Rand2();
+            float2 R = BlueNoiseTexs[Context.FrameIndex & 63][ThreadId & 63].rg;
+            Rd = SampleHemisphereCosineWeighted(HitN, R);
         }
         else
         {

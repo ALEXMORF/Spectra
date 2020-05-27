@@ -39,7 +39,7 @@ struct engine
     gpu_context Context;
     IDXGISwapChain3 *SwapChain;
     
-    descriptor_arena UAVArena;
+    descriptor_arena DescriptorArena;
     
     pso PathTracePSO;
     pso TemporalFilterPSO;
@@ -58,6 +58,7 @@ struct engine
     texture AlbedoTex;
     texture EmissionTex;
     texture RayDirTex;
+    texture BlueNoiseTexs[64];
     
     // denoiser data
     texture PositionHistTex;

@@ -24,7 +24,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
             BackBufferTexs[I] = WrapTexture(BackBuffer, D3D12_RESOURCE_STATE_PRESENT);
         }
         
-        UAVArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        DescriptorArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         
         PathTracePSO = InitComputePSO(D, "../code/pathtrace.hlsl", "main");
         TemporalFilterPSO = InitComputePSO(D, "../code/temporal_filter.hlsl", "main");
@@ -36,165 +36,137 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         TaaPSO = InitComputePSO(D, "../code/taa.hlsl", "main");
         ToneMapPSO = InitComputePSO(D, "../code/tonemap.hlsl", "main");
         
+        for (int I = 0; I < 64; ++I)
+        {
+            char BlueNoiseFilename[256];
+            snprintf(BlueNoiseFilename, sizeof(BlueNoiseFilename),
+                     "../data/textures/HDR_RGBA_%d.png", I);
+            BlueNoiseTexs[I] = Context.LoadTexture2D(BlueNoiseFilename, 
+                                                     DXGI_FORMAT_R8G8B8A8_UNORM,
+                                                     D3D12_RESOURCE_FLAG_NONE,
+                                                     D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE);
+            AssignSRV(D, BlueNoiseTexs+I, &DescriptorArena);
+        }
+        
         LightTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                  DXGI_FORMAT_R16G16B16A16_FLOAT,
                                  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        LightTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(LightTex.Handle, 0, 0, 
-                                     LightTex.UAV.CPUHandle);
+        AssignUAV(D, &LightTex, &DescriptorArena);
         
         PositionTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                     DXGI_FORMAT_R32G32B32A32_FLOAT,
                                     D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        PositionTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(PositionTex.Handle, 0, 0, 
-                                     PositionTex.UAV.CPUHandle);
+        AssignUAV(D, &PositionTex, &DescriptorArena);
         
         NormalTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                   DXGI_FORMAT_R16G16B16A16_FLOAT,
                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        NormalTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(NormalTex.Handle, 0, 0, 
-                                     NormalTex.UAV.CPUHandle);
+        AssignUAV(D, &NormalTex, &DescriptorArena);
         
         AlbedoTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                   DXGI_FORMAT_R16G16B16A16_FLOAT,
                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AlbedoTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(AlbedoTex.Handle, 0, 0, 
-                                     AlbedoTex.UAV.CPUHandle);
+        AssignUAV(D, &AlbedoTex, &DescriptorArena);
         
         EmissionTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                     DXGI_FORMAT_R16G16B16A16_FLOAT,
                                     D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        EmissionTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(EmissionTex.Handle, 0, 0, 
-                                     EmissionTex.UAV.CPUHandle);
+        AssignUAV(D, &EmissionTex, &DescriptorArena);
         
         RayDirTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                   DXGI_FORMAT_R32G32B32A32_FLOAT,
                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        RayDirTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(RayDirTex.Handle, 0, 0, 
-                                     RayDirTex.UAV.CPUHandle);
+        AssignUAV(D, &RayDirTex, &DescriptorArena);
         
         PositionHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                         DXGI_FORMAT_R32G32B32A32_FLOAT,
                                         D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                         D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        PositionHistTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(PositionHistTex.Handle, 0, 0, 
-                                     PositionHistTex.UAV.CPUHandle);
+        AssignUAV(D, &PositionHistTex, &DescriptorArena);
         
         NormalHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                       DXGI_FORMAT_R16G16B16A16_FLOAT,
                                       D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                       D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        NormalHistTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(NormalHistTex.Handle, 0, 0, 
-                                     NormalHistTex.UAV.CPUHandle);
+        AssignUAV(D, &NormalHistTex, &DescriptorArena);
         
         LightHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                      DXGI_FORMAT_R16G16B16A16_FLOAT,
                                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                      D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        LightHistTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(LightHistTex.Handle, 0, 0, 
-                                     LightHistTex.UAV.CPUHandle);
+        AssignUAV(D, &LightHistTex, &DescriptorArena);
         
         LumMomentTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                      DXGI_FORMAT_R16G16_FLOAT,
                                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                      D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        LumMomentTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(LumMomentTex.Handle, 0, 0, 
-                                     LumMomentTex.UAV.CPUHandle);
+        AssignUAV(D, &LumMomentTex, &DescriptorArena);
         
         LumMomentHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                          DXGI_FORMAT_R16G16_FLOAT,
                                          D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                          D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        LumMomentHistTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(LumMomentHistTex.Handle, 0, 0, 
-                                     LumMomentHistTex.UAV.CPUHandle);
+        AssignUAV(D, &LumMomentHistTex, &DescriptorArena);
         
         VarianceTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                     DXGI_FORMAT_R32_FLOAT,
                                     D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        VarianceTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(VarianceTex.Handle, 0, 0, 
-                                     VarianceTex.UAV.CPUHandle);
+        AssignUAV(D, &VarianceTex, &DescriptorArena);
         
         NextVarianceTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                         DXGI_FORMAT_R32_FLOAT,
                                         D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                         D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        NextVarianceTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(NextVarianceTex.Handle, 0, 0, 
-                                     NextVarianceTex.UAV.CPUHandle);
+        AssignUAV(D, &NextVarianceTex, &DescriptorArena);
         
         GBufferTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                    DXGI_FORMAT_R32G32B32A32_FLOAT,
                                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        GBufferTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(GBufferTex.Handle, 0, 0, 
-                                     GBufferTex.UAV.CPUHandle);
+        AssignUAV(D, &GBufferTex, &DescriptorArena);
         
         PrevPixelIdTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                        DXGI_FORMAT_R32G32_FLOAT,
                                        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        PrevPixelIdTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(PrevPixelIdTex.Handle, 0, 0, 
-                                     PrevPixelIdTex.UAV.CPUHandle);
+        AssignUAV(D, &PrevPixelIdTex, &DescriptorArena);
         
         IntegratedLightTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                            DXGI_FORMAT_R16G16B16A16_FLOAT,
                                            D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                            D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        IntegratedLightTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(IntegratedLightTex.Handle, 0, 0, 
-                                     IntegratedLightTex.UAV.CPUHandle);
+        AssignUAV(D, &IntegratedLightTex, &DescriptorArena);
         
         TempTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                 DXGI_FORMAT_R16G16B16A16_FLOAT,
                                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        TempTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(TempTex.Handle, 0, 0, 
-                                     TempTex.UAV.CPUHandle);
+        AssignUAV(D, &TempTex, &DescriptorArena);
         
         TaaOutputTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                      DXGI_FORMAT_R16G16B16A16_FLOAT,
                                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                      D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        TaaOutputTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(TaaOutputTex.Handle, 0, 0, 
-                                     TaaOutputTex.UAV.CPUHandle);
+        AssignUAV(D, &TaaOutputTex, &DescriptorArena);
         
         TaaHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                    DXGI_FORMAT_R16G16B16A16_FLOAT,
                                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        TaaHistTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(TaaHistTex.Handle, 0, 0, 
-                                     TaaHistTex.UAV.CPUHandle);
+        AssignUAV(D, &TaaHistTex, &DescriptorArena);
         
         OutputTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                   DXGI_FORMAT_R8G8B8A8_UNORM,
                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        OutputTex.UAV = UAVArena.PushDescriptor();
-        D->CreateUnorderedAccessView(OutputTex.Handle, 0, 0, 
-                                     OutputTex.UAV.CPUHandle);
+        AssignUAV(D, &OutputTex, &DescriptorArena);
         
         Camera.P = {0.0f, 1.2f, -4.0f};
         Camera.Orientation = Quaternion();
@@ -263,19 +235,20 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     {
         CmdList->SetPipelineState(PathTracePSO.Handle);
         CmdList->SetComputeRootSignature(PathTracePSO.RootSignature);
-        CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
+        CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
         CmdList->SetComputeRootDescriptorTable(0, LightTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, PositionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, NormalTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(3, AlbedoTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(4, EmissionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(5, RayDirTex.UAV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(6, 1, &Width, 0);
-        CmdList->SetComputeRoot32BitConstants(6, 1, &Height, 1);
-        CmdList->SetComputeRoot32BitConstants(6, 1, &FrameIndex, 2);
-        CmdList->SetComputeRoot32BitConstants(6, 3, &Camera.P, 4);
-        CmdList->SetComputeRoot32BitConstants(6, 3, &CamAt, 8);
-        CmdList->SetComputeRoot32BitConstants(6, 1, &Time, 11);
+        CmdList->SetComputeRootDescriptorTable(6, BlueNoiseTexs[0].SRV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(7, 1, &Width, 0);
+        CmdList->SetComputeRoot32BitConstants(7, 1, &Height, 1);
+        CmdList->SetComputeRoot32BitConstants(7, 1, &FrameIndex, 2);
+        CmdList->SetComputeRoot32BitConstants(7, 3, &Camera.P, 4);
+        CmdList->SetComputeRoot32BitConstants(7, 3, &CamAt, 8);
+        CmdList->SetComputeRoot32BitConstants(7, 1, &Time, 11);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&LightTex);
@@ -293,7 +266,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         
         CmdList->SetPipelineState(PackGBufferPSO.Handle);
         CmdList->SetComputeRootSignature(PackGBufferPSO.RootSignature);
-        CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
+        CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
         CmdList->SetComputeRootDescriptorTable(0, PositionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, NormalTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, GBufferTex.UAV.GPUHandle);
@@ -311,7 +284,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         
         CmdList->SetPipelineState(CorrelateHistoryPSO.Handle);
         CmdList->SetComputeRootSignature(CorrelateHistoryPSO.RootSignature);
-        CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
+        CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
         CmdList->SetComputeRootDescriptorTable(0, PositionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, PrevPixelIdTex.UAV.GPUHandle);
         CmdList->SetComputeRoot32BitConstants(2, 3, &PrevCamera.P, 0);
@@ -331,7 +304,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         
         CmdList->SetPipelineState(TemporalFilterPSO.Handle);
         CmdList->SetComputeRootSignature(TemporalFilterPSO.RootSignature);
-        CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
+        CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
         CmdList->SetComputeRootDescriptorTable(0, LightTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, LightHistTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, IntegratedLightTex.UAV.GPUHandle);
@@ -363,7 +336,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     {
         CmdList->SetPipelineState(CalcVariancePSO.Handle);
         CmdList->SetComputeRootSignature(CalcVariancePSO.RootSignature);
-        CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
+        CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
         CmdList->SetComputeRootDescriptorTable(0, LumMomentTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, VarianceTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, IntegratedLightTex.UAV.GPUHandle);
@@ -391,7 +364,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
             
             CmdList->SetPipelineState(SpatialFilterPSO.Handle);
             CmdList->SetComputeRootSignature(SpatialFilterPSO.RootSignature);
-            CmdList->SetDescriptorHeaps(1, &UAVArena.Heap);
+            CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
             CmdList->SetComputeRootDescriptorTable(0, PingPongs[0]->UAV.GPUHandle);
             CmdList->SetComputeRootDescriptorTable(1, PingPongs[1]->UAV.GPUHandle);
             CmdList->SetComputeRootDescriptorTable(2, GBufferTex.UAV.GPUHandle);
@@ -464,7 +437,9 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->SetComputeRootDescriptorTable(0, TaaOutputTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, OutputTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, LightTex.UAV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(3, 1, &SwitchViewThreshold, 0);
+        CmdList->SetComputeRootDescriptorTable(3, BlueNoiseTexs[0].SRV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(4, 1, &SwitchViewThreshold, 0);
+        CmdList->SetComputeRoot32BitConstants(4, 1, &FrameIndex, 1);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&OutputTex);
