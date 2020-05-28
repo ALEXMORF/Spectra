@@ -1,16 +1,16 @@
 float sdBox1(float3 P)
 {
-    P -= float3(-1, -0.7, 0);
-    P.xz = mul(P.xz, Rotate2(1));
-    float Dist = sdBox(P, float3(0.5, 1.3, 0.5));
+    P -= float3(-1, -1.4, 0.5);
+    P.xz = mul(P.xz, Rotate2(-0.3));
+    float Dist = sdBox(P, float3(0.6, 0.6, 0.6));
     return Dist;
 }
 
 float sdBox2(float3 P)
 {
-    P -= float3(1, -1.3, -0.4);
-    P.xz = mul(P.xz, Rotate2(0.2));
-    float Dist = sdBox(P, float3(0.6, 0.7, 0.6));
+    P -= float3(0.7, -0.7, -0.4);
+    P.xz = mul(P.xz, Rotate2(0.3));
+    float Dist = sdBox(P, float3(0.6, 1.3, 0.6));
     return Dist;
 }
 
@@ -55,12 +55,12 @@ material MapMaterial(int MatId, float3 P, float Time)
     if (MatId == 0) // container
     {
         Mat.Albedo = 1.0;
-        if (P.x <= -1.95) Mat.Albedo = float3(0.1, 0.1, 1);
+        if (P.x <= -1.95) Mat.Albedo = float3(0.1, 1.0, 0.1);
         if (P.x >= 1.95) Mat.Albedo = float3(1.0, 0.1, 0.1);
         
         Mat.Emission = 0;
         
-        if (P.y > 0.0 && length(P.xz) < 1.0) Mat.Emission = 10;
+        if (P.y > 0.0 && length(P.xz) < 1.0) Mat.Emission = 5;
     }
     else if (MatId == 1)
     {
