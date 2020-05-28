@@ -47,6 +47,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         
         DescriptorArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         
+        PrimaryPSO = InitComputePSO(D, "../code/primary.hlsl", "main");
         PathTracePSO = InitComputePSO(D, "../code/pathtrace.hlsl", "main");
         TemporalFilterPSO = InitComputePSO(D, "../code/temporal_filter.hlsl", "main");
         CalcVariancePSO = InitComputePSO(D, "../code/calc_variance.hlsl", "main");
@@ -206,11 +207,17 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         ID3D12Device *D = Context.Device;
         
         b32 ShadersAreValid = true;
+        if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/primary.hlsl", "main");
         if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/pathtrace.hlsl", "main");
         if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/apply_primary_shading.hlsl", "main");
         
         if (ShadersAreValid)
         {
+            PrimaryPSO.Release();
+            PathTracePSO.Release();
+            ApplyPrimaryShadingPSO.Release();
+            
+            PrimaryPSO = InitComputePSO(D, "../code/primary.hlsl", "main");
             PathTracePSO = InitComputePSO(D, "../code/pathtrace.hlsl", "main");
             ApplyPrimaryShadingPSO = InitComputePSO(D, "../code/apply_primary_shading.hlsl", "main");
         }
@@ -259,6 +266,54 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     if (SwitchViewThreshold < 0) SwitchViewThreshold = 0;
     if (SwitchViewThreshold >= Width) SwitchViewThreshold = Width-1;
     
+    // primary rays
+    {
+        CmdList->SetPipelineState(PrimaryPSO.Handle);
+        CmdList->SetComputeRootSignature(PrimaryPSO.RootSignature);
+        CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
+        CmdList->SetComputeRootDescriptorTable(0, PositionTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(1, NormalTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(2, AlbedoTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(3, EmissionTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(4, RayDirTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &Width, 0);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &Height, 1);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &FrameIndex, 2);
+        CmdList->SetComputeRoot32BitConstants(5, 3, &Camera.P, 4);
+        CmdList->SetComputeRoot32BitConstants(5, 3, &CamAt, 8);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &Time, 11);
+        CmdList->SetComputeRoot32BitConstants(5, 2, &PixelOffset, 12);
+        CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
+        
+        Context.UAVBarrier(&PositionTex);
+        Context.UAVBarrier(&NormalTex);
+        Context.UAVBarrier(&AlbedoTex);
+        Context.UAVBarrier(&EmissionTex);
+        Context.UAVBarrier(&RayDirTex);
+        Context.FlushBarriers();
+    }
+    
+    // correlate history pixels
+    {
+        quaternion PrevCameraInvOrientation = Conjugate(PrevCamera.Orientation);
+        
+        CmdList->SetPipelineState(CorrelateHistoryPSO.Handle);
+        CmdList->SetComputeRootSignature(CorrelateHistoryPSO.RootSignature);
+        CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
+        CmdList->SetComputeRootDescriptorTable(0, PositionTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(1, PrevPixelIdTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(2, 3, &PrevCamera.P, 0);
+        CmdList->SetComputeRoot32BitConstants(2, 4, &PrevCameraInvOrientation, 4);
+        CmdList->SetComputeRoot32BitConstants(2, 1, &Width, 8);
+        CmdList->SetComputeRoot32BitConstants(2, 1, &Height, 9);
+        CmdList->SetComputeRoot32BitConstants(2, 1, &FrameIndex, 10);
+        CmdList->SetComputeRoot32BitConstants(2, 2, &PixelOffset, 12);
+        CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
+        
+        Context.UAVBarrier(&PrevPixelIdTex);
+        Context.FlushBarriers();
+    }
+    
     // path tracing
     {
         CmdList->SetPipelineState(PathTracePSO.Handle);
@@ -270,14 +325,15 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->SetComputeRootDescriptorTable(3, AlbedoTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(4, EmissionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(5, RayDirTex.UAV.GPUHandle);
-        CmdList->SetComputeRootDescriptorTable(6, BlueNoiseTexs[0].SRV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(7, 1, &Width, 0);
-        CmdList->SetComputeRoot32BitConstants(7, 1, &Height, 1);
-        CmdList->SetComputeRoot32BitConstants(7, 1, &FrameIndex, 2);
-        CmdList->SetComputeRoot32BitConstants(7, 3, &Camera.P, 4);
-        CmdList->SetComputeRoot32BitConstants(7, 3, &CamAt, 8);
-        CmdList->SetComputeRoot32BitConstants(7, 1, &Time, 11);
-        CmdList->SetComputeRoot32BitConstants(7, 2, &PixelOffset, 12);
+        CmdList->SetComputeRootDescriptorTable(6, PrevPixelIdTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(7, BlueNoiseTexs[0].SRV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(8, 1, &Width, 0);
+        CmdList->SetComputeRoot32BitConstants(8, 1, &Height, 1);
+        CmdList->SetComputeRoot32BitConstants(8, 1, &FrameIndex, 2);
+        CmdList->SetComputeRoot32BitConstants(8, 3, &Camera.P, 4);
+        CmdList->SetComputeRoot32BitConstants(8, 3, &CamAt, 8);
+        CmdList->SetComputeRoot32BitConstants(8, 1, &Time, 11);
+        CmdList->SetComputeRoot32BitConstants(8, 2, &PixelOffset, 12);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&LightTex);
@@ -304,27 +360,6 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&GBufferTex);
-        Context.FlushBarriers();
-    }
-    
-    // correlate history pixels
-    {
-        quaternion PrevCameraInvOrientation = Conjugate(PrevCamera.Orientation);
-        
-        CmdList->SetPipelineState(CorrelateHistoryPSO.Handle);
-        CmdList->SetComputeRootSignature(CorrelateHistoryPSO.RootSignature);
-        CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
-        CmdList->SetComputeRootDescriptorTable(0, PositionTex.UAV.GPUHandle);
-        CmdList->SetComputeRootDescriptorTable(1, PrevPixelIdTex.UAV.GPUHandle);
-        CmdList->SetComputeRoot32BitConstants(2, 3, &PrevCamera.P, 0);
-        CmdList->SetComputeRoot32BitConstants(2, 4, &PrevCameraInvOrientation, 4);
-        CmdList->SetComputeRoot32BitConstants(2, 1, &Width, 8);
-        CmdList->SetComputeRoot32BitConstants(2, 1, &Height, 9);
-        CmdList->SetComputeRoot32BitConstants(2, 1, &FrameIndex, 10);
-        CmdList->SetComputeRoot32BitConstants(2, 2, &PixelOffset, 12);
-        CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
-        
-        Context.UAVBarrier(&PrevPixelIdTex);
         Context.FlushBarriers();
     }
     

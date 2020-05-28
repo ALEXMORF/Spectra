@@ -30,6 +30,16 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         float3 Illumination = LightTex[ThreadId].rgb;
         float3 FirstBrdf = Albedo/Pi;
         float3 Radiance = FirstBrdf*Illumination + Emission;
+        
+        // mark disoccluded regions as purple
+#if 0
+        float SampleCount = LightTex[ThreadId].a;
+        if (SampleCount < 4)
+        {
+            Radiance = float3(1, 0, 1);
+        }
+#endif
+        
         LightTex[ThreadId] = float4(Radiance, 1.0);
     }
     else

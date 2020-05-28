@@ -27,6 +27,8 @@ struct pso
 {
     ID3D12PipelineState *Handle;
     ID3D12RootSignature *RootSignature;
+    
+    void Release();
 };
 
 struct texture
@@ -259,6 +261,14 @@ descriptor_arena::PushDescriptor()
 //
 //
 // pipeline states
+
+void pso::Release()
+{
+    Handle->Release();
+    RootSignature->Release();
+    Handle = 0;
+    RootSignature = 0;
+}
 
 internal b32
 VerifyComputeShader(char *Filename, char *EntryPoint)

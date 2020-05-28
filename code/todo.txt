@@ -46,13 +46,26 @@
 
 - halton TAA sampling [x]
 
-- light sampling with blue noise []
--   sampling blue-noise for first bounce [x]
--   alter noise for subsequent bounces []
-
 - shoot more rays in disoccluded area []
+-   separate primary from indirect [x]
+-   adaptive sampling [x]
+-   account for history out of range [x]
+-   account for failed backprojection []
 
-- multi-temporal-filter approach []
+- filmic tonemap []
+
+- better reprojection []
+-   better depth weighting []
 
 - directional light source []
+
+- need perf counters []
+
+- better light sampling []
+
 - volumetric lighting []
+- fog particles []
+
+- generate blue noise with even temporal distribution []
+
+- multi-temporal-filter approach []

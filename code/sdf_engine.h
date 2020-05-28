@@ -41,6 +41,7 @@ struct engine
     
     descriptor_arena DescriptorArena;
     
+    pso PrimaryPSO;
     pso PathTracePSO;
     pso TemporalFilterPSO;
     pso CalcVariancePSO;
