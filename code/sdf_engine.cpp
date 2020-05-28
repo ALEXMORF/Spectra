@@ -49,6 +49,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         
         PrimaryPSO = InitComputePSO(D, "../code/primary.hlsl", "main");
         PathTracePSO = InitComputePSO(D, "../code/pathtrace.hlsl", "main");
+        ComputeDisocclusionPSO = InitComputePSO(D, "../code/compute_disocclusion.hlsl", "main");
         TemporalFilterPSO = InitComputePSO(D, "../code/temporal_filter.hlsl", "main");
         CalcVariancePSO = InitComputePSO(D, "../code/calc_variance.hlsl", "main");
         PackGBufferPSO = InitComputePSO(D, "../code/pack_gbuffer.hlsl", "main");
@@ -105,6 +106,12 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         AssignUAV(D, &RayDirTex, &DescriptorArena);
+        
+        DisocclusionTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                        DXGI_FORMAT_R8_UINT,
+                                        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        AssignUAV(D, &DisocclusionTex, &DescriptorArena);
         
         PositionHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                         DXGI_FORMAT_R32G32B32A32_FLOAT,
@@ -314,6 +321,28 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         Context.FlushBarriers();
     }
     
+    // compute disocclusion
+    {
+        CmdList->SetPipelineState(ComputeDisocclusionPSO.Handle);
+        CmdList->SetComputeRootSignature(ComputeDisocclusionPSO.RootSignature);
+        CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
+        CmdList->SetComputeRootDescriptorTable(0, PositionTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(1, NormalTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(2, PositionHistTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(3, NormalHistTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(4, PrevPixelIdTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(5, DisocclusionTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(6, 1, &FrameIndex, 0);
+        CmdList->SetComputeRoot32BitConstants(6, 3, &Camera.P, 1);
+        CmdList->SetComputeRoot32BitConstants(6, 1, &Width, 4);
+        CmdList->SetComputeRoot32BitConstants(6, 1, &Height, 5);
+        
+        CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
+        
+        Context.UAVBarrier(&DisocclusionTex);
+        Context.FlushBarriers();
+    }
+    
     // path tracing
     {
         CmdList->SetPipelineState(PathTracePSO.Handle);
@@ -325,7 +354,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->SetComputeRootDescriptorTable(3, AlbedoTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(4, EmissionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(5, RayDirTex.UAV.GPUHandle);
-        CmdList->SetComputeRootDescriptorTable(6, PrevPixelIdTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(6, DisocclusionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(7, BlueNoiseTexs[0].SRV.GPUHandle);
         CmdList->SetComputeRoot32BitConstants(8, 1, &Width, 0);
         CmdList->SetComputeRoot32BitConstants(8, 1, &Height, 1);

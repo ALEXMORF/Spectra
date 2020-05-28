@@ -11,7 +11,7 @@ RWTexture2D<float4> NormalTex: register(u2);
 RWTexture2D<float4> AlbedoTex: register(u3);
 RWTexture2D<float4> EmissionTex: register(u4);
 RWTexture2D<float4> RayDirTex: register(u5);
-RWTexture2D<float2> PrevPixelIdTex: register(u6);
+RWTexture2D<uint> DisocclusionTex: register(u6);
 
 Texture2D<float4> BlueNoiseTexs[64]: register(t0);
 
@@ -67,10 +67,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     
     gSeed = UV * (float(Context.FrameIndex)+1.0);
     
-    float2 PrevPixelId = PrevPixelIdTex[ThreadId];
-    bool HasNoHistory = any(PrevPixelId < 0.0 || 
-                            PrevPixelId > float2(Context.Width-1,
-                                                 Context.Height-1));
+    bool HasNoHistory = DisocclusionTex[ThreadId] == 1;
     
     float3 HitP = PositionTex[ThreadId].xyz;
     float3 HitN = NormalTex[ThreadId].xyz;
@@ -79,7 +76,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     if (length(HitP) < 10e30)
     {
         int SampleCount = 1;
-        if (HasNoHistory) SampleCount = 16;
+        if (HasNoHistory) SampleCount = 8;
         float SampleWeight = 1.0 / float(SampleCount);
         
         float3 SampleAvg = 0;

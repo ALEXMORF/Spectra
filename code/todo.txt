@@ -46,11 +46,11 @@
 
 - halton TAA sampling [x]
 
-- shoot more rays in disoccluded area []
+- shoot more rays in disoccluded area [x]
 -   separate primary from indirect [x]
 -   adaptive sampling [x]
 -   account for history out of range [x]
--   account for failed backprojection []
+-   account for failed backprojection [x]
 
 - filmic tonemap []
 
@@ -62,6 +62,8 @@
 - need perf counters []
 
 - better light sampling []
+
+- more material types []
 
 - volumetric lighting []
 - fog particles []

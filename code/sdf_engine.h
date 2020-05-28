@@ -43,6 +43,7 @@ struct engine
     
     pso PrimaryPSO;
     pso PathTracePSO;
+    pso ComputeDisocclusionPSO;
     pso TemporalFilterPSO;
     pso CalcVariancePSO;
     pso PackGBufferPSO;
@@ -60,6 +61,7 @@ struct engine
     texture EmissionTex;
     texture RayDirTex;
     texture BlueNoiseTexs[64];
+    texture DisocclusionTex;
     
     // denoiser data
     texture PositionHistTex;
