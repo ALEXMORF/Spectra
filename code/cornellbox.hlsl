@@ -1,3 +1,19 @@
+float sdBox1(float3 P)
+{
+    P -= float3(-1, -0.7, 0);
+    P.xz = mul(P.xz, Rotate2(1));
+    float Dist = sdBox(P, float3(0.5, 1.3, 0.5));
+    return Dist;
+}
+
+float sdBox2(float3 P)
+{
+    P -= float3(1, -1.3, -0.4);
+    P.xz = mul(P.xz, Rotate2(0.2));
+    float Dist = sdBox(P, float3(0.6, 0.7, 0.6));
+    return Dist;
+}
+
 point_query Map(float3 P, float Time)
 {
     point_query Q;
@@ -7,15 +23,20 @@ point_query Map(float3 P, float Time)
     float Neg = dot(P-float3(0, 0, 1.5), float3(0, 0, 1));
     Container = max(Container, Neg);
     
-    float Box1 = sdBox(P - float3(-1, -1, 0), float3(0.5, 1, 0.5));
+    float Box1 = sdBox1(P);
+    float Box2 = sdBox2(P);
     
-    Q.Dist = min(Container, Box1);
+    Q.Dist = min(min(Container, Box1), Box2);
     
     if (Q.Dist == Container)
     {
         Q.MatId = 0;
     }
     else if (Q.Dist == Box1)
+    {
+        Q.MatId = 1;
+    }
+    else if (Q.Dist == Box2)
     {
         Q.MatId = 1;
     }
@@ -39,7 +60,7 @@ material MapMaterial(int MatId, float3 P, float Time)
         
         Mat.Emission = 0;
         
-        if (P.y > 0.0 && length(P.xz) < 0.5) Mat.Emission = 200;
+        if (P.y > 0.0 && length(P.xz) < 1.0) Mat.Emission = 10;
     }
     else if (MatId == 1)
     {

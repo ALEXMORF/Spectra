@@ -10,6 +10,14 @@ struct material
     float3 Emission;
 };
 
+float2x2 Rotate2(float Theta)
+{
+    float C = cos(Theta);
+    float S = sin(Theta);
+    return float2x2(C, -S,
+                    S, C);
+}
+
 float sdBox(float3 P, float3 Radius)
 {
     float3 Q = abs(P) - Radius;

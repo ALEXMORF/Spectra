@@ -99,7 +99,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
                     material Mat = MapMaterial(Hit.MatId, HitP, Context.Time);
                     
                     Sample += Attenuation * Mat.Emission;
-                    float3 Brdf = Mat.Albedo/Pi;
+                    float3 Brdf = Mat.Albedo;
                     Attenuation *= Brdf;
                     
                     HitP = Ro + Hit.T*Rd;

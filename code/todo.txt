@@ -52,6 +52,8 @@
 -   account for history out of range [x]
 -   account for failed backprojection [x]
 
+- debug weird emission leak into other mat ids []
+
 - filmic tonemap []
 
 - better reprojection []

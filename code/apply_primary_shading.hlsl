@@ -28,7 +28,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         float3 Albedo = AlbedoTex[ThreadId].rgb;
         
         float3 Illumination = LightTex[ThreadId].rgb;
-        float3 FirstBrdf = Albedo/Pi;
+        float3 FirstBrdf = Albedo;
         float3 Radiance = FirstBrdf*Illumination + Emission;
         
         // mark disoccluded regions as purple
