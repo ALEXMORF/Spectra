@@ -83,13 +83,13 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         
         for (int SampleI = 0; SampleI < SampleCount; ++SampleI)
         {
-            int BounceCount = 3;
+            int BounceCount = 5;
             
             float3 Sample = 0;
             float3 Attenuation = 1.0;
             for (int Depth = 0; Depth < BounceCount; ++Depth)
             {
-                float3 Ro = HitP + 0.002*HitN;
+                float3 Ro = HitP + 0.01*HitN;
                 float2 R = Rand2();
                 float3 Rd = SampleHemisphereCosineWeighted(HitN, R);
                 
@@ -103,7 +103,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
                     Attenuation *= Brdf;
                     
                     HitP = Ro + Hit.T*Rd;
-                    float3 HitN = CalcGradient(HitP, Context.Time);
+                    HitN = CalcGradient(HitP, Context.Time);
                 }
                 else
                 {

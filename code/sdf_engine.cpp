@@ -446,7 +446,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     // spatial filter
     {
         int Iterations = 6;
-        // this gaurantees the end result ends up in IntegratedLightTex
+        // this gaurantees the end result ends up in IntegratedNoisyLightTex
         ASSERT(Iterations % 2 == 0); 
         
         texture *PingPongs[2] = {&IntegratedLightTex, &TempTex};
@@ -501,6 +501,24 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         Context.UAVBarrier(&IntegratedLightTex);
         Context.FlushBarriers();
     }
+    
+#if 0
+    // apply primary shading on noisy input too
+    {
+        CmdList->SetPipelineState(ApplyPrimaryShadingPSO.Handle);
+        CmdList->SetComputeRootSignature(ApplyPrimaryShadingPSO.RootSignature);
+        CmdList->SetComputeRootDescriptorTable(0, LightTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(1, PositionTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(2, AlbedoTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(3, EmissionTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(4, RayDirTex.UAV.GPUHandle);
+        CmdList->SetComputeRoot32BitConstants(5, 1, &Time, 0);
+        CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
+        
+        Context.UAVBarrier(&LightTex);
+        Context.FlushBarriers();
+    }
+#endif
     
     // TAA
     {
