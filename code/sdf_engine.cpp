@@ -445,7 +445,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     
     // spatial filter
     {
-        int Iterations = 6;
+        int Iterations = 0;
         // this gaurantees the end result ends up in IntegratedNoisyLightTex
         ASSERT(Iterations % 2 == 0); 
         

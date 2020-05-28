@@ -52,7 +52,7 @@
 -   account for history out of range [x]
 -   account for failed backprojection [x]
 
-- debug weird emission leak into other mat ids []
+- better light sampling []
 
 - filmic tonemap []
 
@@ -62,8 +62,6 @@
 - directional light source []
 
 - need perf counters []
-
-- better light sampling []
 
 - more material types []
 

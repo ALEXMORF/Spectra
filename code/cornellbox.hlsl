@@ -60,7 +60,7 @@ material MapMaterial(int MatId, float3 P, float Time)
         
         Mat.Emission = 0;
         
-        if (P.y > 0.0 && length(P.xz) < 1.0) Mat.Emission = 5;
+        if (P.y > 0.0 && length(P.xz) < 0.5) Mat.Emission = 15;
     }
     else if (MatId == 1)
     {

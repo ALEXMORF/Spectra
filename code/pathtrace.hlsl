@@ -73,6 +73,8 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     float3 HitN = NormalTex[ThreadId].xyz;
     float3 Radiance = 0;
     
+    uint NoiseTexIndex = Context.FrameIndex & 63;
+    
     if (length(HitP) < 10e30)
     {
         int SampleCount = 1;
@@ -83,27 +85,29 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         
         for (int SampleI = 0; SampleI < SampleCount; ++SampleI)
         {
-            int BounceCount = 5;
+            int BounceCount = 3;
             
             float3 Sample = 0;
             float3 Attenuation = 1.0;
             for (int Depth = 0; Depth < BounceCount; ++Depth)
             {
                 float3 Ro = HitP + 0.01*HitN;
-                float2 R = Rand2();
+                //float2 R = Rand2();
+                float2 R = BlueNoiseTexs[NoiseTexIndex & 63][ThreadId & 63].rg;
+                NoiseTexIndex += 1;
                 float3 Rd = SampleHemisphereCosineWeighted(HitN, R);
                 
                 hit Hit = RayMarch(Ro, Rd, Context.Time);
                 if (Hit.MatId != -1)
                 {
+                    HitP = Ro + Hit.T*Rd;
+                    HitN = CalcGradient(HitP, Context.Time);
+                    
                     material Mat = MapMaterial(Hit.MatId, HitP, Context.Time);
                     
                     Sample += Attenuation * Mat.Emission;
                     float3 Brdf = Mat.Albedo;
                     Attenuation *= Brdf;
-                    
-                    HitP = Ro + Hit.T*Rd;
-                    HitN = CalcGradient(HitP, Context.Time);
                 }
                 else
                 {
