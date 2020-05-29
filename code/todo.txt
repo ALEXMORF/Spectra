@@ -52,12 +52,22 @@
 -   account for history out of range [x]
 -   account for failed backprojection [x]
 
-- better light sampling []
+- temporal backproj improvement []
+-   use temporal distortion factor []
+
+- UI improvements []
+-   handle mouse moving-outside of screen []
+-   refresh state if window goes inactive []
+
+- graceful error msgs []
+-   printed msg on screen instead of window msg []
+
+- next event estimation []
+-   try cached point clouds []
+
+- better noise []
 
 - filmic tonemap []
-
-- better reprojection []
--   better depth weighting []
 
 - directional light source []
 

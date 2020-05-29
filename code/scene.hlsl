@@ -28,5 +28,7 @@ float sdBox(float3 P, float3 Radius)
 //material MapMaterial(int MatId, float3 P, float Time);
 //float3 Env(float3 Rd, float Time);
 
-#include "cornellbox.hlsl"
+#include "sphere.hlsl"
+//#include "cornellbox.hlsl"
 //#include "coolbox.hlsl"
+//#include "interior.hlsl"

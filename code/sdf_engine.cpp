@@ -71,11 +71,11 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
             AssignSRV(D, BlueNoiseTexs+I, &DescriptorArena);
         }
         
-        LightTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                 DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                 D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                 D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &LightTex, &DescriptorArena);
+        NoisyLightTex = InitTexture2D(D, WIDTH, HEIGHT, 
+                                      DXGI_FORMAT_R16G16B16A16_FLOAT,
+                                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                                      D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        AssignUAV(D, &NoisyLightTex, &DescriptorArena);
         
         PositionTex = InitTexture2D(D, WIDTH, HEIGHT, 
                                     DXGI_FORMAT_R32G32B32A32_FLOAT,
@@ -197,7 +197,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         AssignUAV(D, &OutputTex, &DescriptorArena);
         
-        Camera.P = {0.0f, 1.2f, -4.0f};
+        Camera.P = {0.0f, 0.0f, -4.0f};
         Camera.Orientation = Quaternion();
         
         for (u64 I = 0; I < ARRAY_COUNT(HaltonSequence); ++I)
@@ -348,7 +348,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->SetPipelineState(PathTracePSO.Handle);
         CmdList->SetComputeRootSignature(PathTracePSO.RootSignature);
         CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
-        CmdList->SetComputeRootDescriptorTable(0, LightTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(0, NoisyLightTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, PositionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, NormalTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(3, AlbedoTex.UAV.GPUHandle);
@@ -365,7 +365,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->SetComputeRoot32BitConstants(8, 2, &PixelOffset, 12);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
-        Context.UAVBarrier(&LightTex);
+        Context.UAVBarrier(&NoisyLightTex);
         Context.UAVBarrier(&PositionTex);
         Context.UAVBarrier(&NormalTex);
         Context.UAVBarrier(&AlbedoTex);
@@ -399,7 +399,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->SetPipelineState(TemporalFilterPSO.Handle);
         CmdList->SetComputeRootSignature(TemporalFilterPSO.RootSignature);
         CmdList->SetDescriptorHeaps(1, &DescriptorArena.Heap);
-        CmdList->SetComputeRootDescriptorTable(0, LightTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(0, NoisyLightTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, LightHistTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, IntegratedLightTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(3, PositionTex.UAV.GPUHandle);
@@ -426,6 +426,11 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         Context.CopyResourceBarriered(&NormalHistTex, &NormalTex);
     }
     
+    //NOTE(chen): record temporal filtered only result to help debug spatial filter
+    {
+        Context.CopyResourceBarriered(&NoisyLightTex, &IntegratedLightTex);
+    }
+    
     // calc variance
     {
         CmdList->SetPipelineState(CalcVariancePSO.Handle);
@@ -445,7 +450,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     
     // spatial filter
     {
-        int Iterations = 0;
+        int Iterations = 6;
         // this gaurantees the end result ends up in IntegratedNoisyLightTex
         ASSERT(Iterations % 2 == 0); 
         
@@ -502,12 +507,11 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         Context.FlushBarriers();
     }
     
-#if 0
-    // apply primary shading on noisy input too
+    // apply primary shading on noisy input for comparison
     {
         CmdList->SetPipelineState(ApplyPrimaryShadingPSO.Handle);
         CmdList->SetComputeRootSignature(ApplyPrimaryShadingPSO.RootSignature);
-        CmdList->SetComputeRootDescriptorTable(0, LightTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(0, NoisyLightTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, PositionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(2, AlbedoTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(3, EmissionTex.UAV.GPUHandle);
@@ -515,10 +519,9 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->SetComputeRoot32BitConstants(5, 1, &Time, 0);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
-        Context.UAVBarrier(&LightTex);
+        Context.UAVBarrier(&IntegratedLightTex);
         Context.FlushBarriers();
     }
-#endif
     
     // TAA
     {
@@ -548,7 +551,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         CmdList->SetComputeRootSignature(ToneMapPSO.RootSignature);
         CmdList->SetComputeRootDescriptorTable(0, TaaOutputTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(1, OutputTex.UAV.GPUHandle);
-        CmdList->SetComputeRootDescriptorTable(2, LightTex.UAV.GPUHandle);
+        CmdList->SetComputeRootDescriptorTable(2, NoisyLightTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(3, BlueNoiseTexs[0].SRV.GPUHandle);
         CmdList->SetComputeRoot32BitConstants(4, 1, &SwitchViewThreshold, 0);
         CmdList->SetComputeRoot32BitConstants(4, 1, &FrameIndex, 1);

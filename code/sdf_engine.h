@@ -54,7 +54,7 @@ struct engine
     pso ToneMapPSO;
     
     // pathtracer output
-    texture LightTex;
+    texture NoisyLightTex;
     texture PositionTex;
     texture NormalTex;
     texture AlbedoTex;

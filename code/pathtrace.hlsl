@@ -73,12 +73,10 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
     float3 HitN = NormalTex[ThreadId].xyz;
     float3 Radiance = 0;
     
-    uint NoiseTexIndex = Context.FrameIndex & 63;
-    
     if (length(HitP) < 10e30)
     {
         int SampleCount = 1;
-        if (HasNoHistory) SampleCount = 8;
+        if (HasNoHistory) SampleCount *= 8;
         float SampleWeight = 1.0 / float(SampleCount);
         
         float3 SampleAvg = 0;
@@ -92,9 +90,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
             for (int Depth = 0; Depth < BounceCount; ++Depth)
             {
                 float3 Ro = HitP + 0.01*HitN;
-                //float2 R = Rand2();
-                float2 R = BlueNoiseTexs[NoiseTexIndex & 63][ThreadId & 63].rg;
-                NoiseTexIndex += 1;
+                float2 R = Rand2();
                 float3 Rd = SampleHemisphereCosineWeighted(HitN, R);
                 
                 hit Hit = RayMarch(Ro, Rd, Context.Time);
