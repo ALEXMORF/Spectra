@@ -46,17 +46,17 @@ Also, the source comes with some example scenes I've made in the form of include
 
 Selectively un-comment the scene you want to see. Here are some screenshots of these stock scenes I've prepared:
 
+sphere.hlsl:
 ![sphere](https://user-images.githubusercontent.com/16845654/83236798-f5191380-a148-11ea-9e33-20f5d9f79d7c.PNG)
+
+cornellbox.hlsl:
 ![cornellbox](https://user-images.githubusercontent.com/16845654/83236801-f77b6d80-a148-11ea-9a4f-574868cca5a9.PNG)
+
+tron.hlsl:
 ![tron](https://user-images.githubusercontent.com/16845654/83236803-f9453100-a148-11ea-86e1-8575461cd551.PNG)
+
+coolbox.hlsl:
 ![coolbox](https://user-images.githubusercontent.com/16845654/83236807-fa765e00-a148-11ea-9dd8-4126e039e73e.PNG)
+
+interior.hlsl:
 ![interior](https://user-images.githubusercontent.com/16845654/83236809-fba78b00-a148-11ea-99c7-1cc9691dae29.PNG)
-
-
-![base profile screenshot 2018 04 22 - 13 22 33 57](https://user-images.githubusercontent.com/16845654/39100342-4f3381fc-463d-11e8-9d3d-3843d40edb53.png)
-
-(Rendered with shaderian, you can find this shader as sample/fractal_pathtracer.frag)
-
-![image](https://user-images.githubusercontent.com/16845654/39226536-ee49b57e-4807-11e8-8be2-33c0174d0f58.png)
-
-(Rendered with shaderian, you can find this shader as sample/menger_sponge.frag)
