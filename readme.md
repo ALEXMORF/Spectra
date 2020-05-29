@@ -1,44 +1,32 @@
-# Shaderian
+# Spectra
 
-A live GLSL programming environment on windows. Edit your shader code and see the changes happen, live!
+A real-time SDF pathtracer. Edit your SDFs and see the changes happen, live!
+
+# Build it
+
+Load cl.exe into environment variable, then invoke code/build.bat to generate the binary.
 
 # Usage
 
-shaderian.exe [shader filename] [option]
+While the application is running, you can edit scene.hlsl and the changes will be hotloaded in real-time. 
 
-# Options
-
-shazan - create an opengl 3.0 context instead of 3.3 core profile context
-
-
-
-# Starter code
-
-This is the starter code, just copy paste this into your shader and start from there. 
+To make this work, you need to define the following three functions in scene.hlsl file:
 
 ```
-#version 330 core //or your respective version of glsl
 
-uniform float uTime;      // time the app has been running in seconds
-uniform vec2 uResolution; // window client rect resolution in pixels
-uniform int uFrameIndex;  // the count of frames that's been run before current frame
-uniform sampler2D uPrevFrame;  // access to previous frame as texture
-
-// HDR environment maps
-uniform sampler2D GraceCathedral;
-uniform sampler2D Glacier;
-uniform sampler2D UffiziGallery;
-uniform sampler2D EnnisDiningRoom;
-uniform sampler2D PisaCourtyard;
-uniform sampler2D DogeCourtyard;
-
-in vec2 FragCoord;        // normalized fragment coordinate, range: <[-1, 1], [-1, 1]>
-out vec3 FragColor;       // output color
-
-void main()
+point_query Map(float3 P, float Time)
 {
-//your code
+  // define geometry
 }
+material MapMaterial(int MatId, float3 P, float Time)
+{
+  // define material
+}
+float3 Env(float3 Rd, float Time)
+{
+  // define environment lighting
+}
+
 ```
 
 # New Feature: Access to previous frame and frame indexer
