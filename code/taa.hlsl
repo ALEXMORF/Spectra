@@ -41,19 +41,21 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
             }
         }
         
-        float3 NeighborMin = 10e31;
-        float3 NeighborMax = -10e31;
+        float3 BoxNeighborMin = 10e31;
+        float3 BoxNeighborMax = -10e31;
+        
         for (int dY = -1; dY <= 1; ++dY)
         {
             for (int dX = -1; dX <= 1; ++dX)
             {
                 int2 TapCoord = ThreadId + int2(dX, dY);
                 float3 Tap = TaaTonemap(InputTex[TapCoord].rgb);
-                NeighborMin = min(NeighborMin, Tap);
-                NeighborMax = max(NeighborMax, Tap);
+                BoxNeighborMin = min(BoxNeighborMin, Tap);
+                BoxNeighborMax = max(BoxNeighborMax, Tap);
             }
         }
-        FilteredHist = clamp(FilteredHist, NeighborMin, NeighborMax);
+        
+        FilteredHist = clamp(FilteredHist, BoxNeighborMin, BoxNeighborMax);
         
         float Alpha = 0.1;
         float3 IntegratedCol = lerp(FilteredHist, 

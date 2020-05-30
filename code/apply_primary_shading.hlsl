@@ -40,9 +40,6 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         }
 #endif
         
-        //float Attenuation = clamp(1.0 - pow(length(P) / 100.0, 2.0), 0.0, 1.0);
-        //Radiance *= Attenuation;
-        
         LightTex[ThreadId] = float4(Radiance, 1.0);
     }
     else

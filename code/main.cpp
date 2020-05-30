@@ -117,6 +117,26 @@ Win32WindowCallback(HWND Window, UINT Message,
             gInput.MouseDown = false;
         } break;
         
+        case WM_ACTIVATE:
+        {
+            bool IsDeactivated = LOWORD(WParam) == WA_INACTIVE;
+            
+            if (IsDeactivated)
+            {
+                for (int KeyI = 0; KeyI < ARRAY_COUNT(gInput.Keys); ++KeyI)
+                {
+                    gInput.Keys[KeyI] = 0;
+                }
+                
+                gInput.MouseDown = false;
+            }
+        } break;
+        
+        case WM_MOUSELEAVE:
+        {
+            gInput.MouseDown = false;
+        } break;
+        
         default:
         {
             Result = DefWindowProc(Window, Message, WParam, LParam);
@@ -244,6 +264,13 @@ WinMain(HINSTANCE Instance,
         
         while (!gAppIsDone)
         {
+            TRACKMOUSEEVENT EventToTrack = {};
+            EventToTrack.cbSize = sizeof(EventToTrack);
+            EventToTrack.dwFlags = TME_LEAVE;
+            EventToTrack.hwndTrack = Window;
+            EventToTrack.dwHoverTime = HOVER_DEFAULT;
+            TrackMouseEvent(&EventToTrack);
+            
             gInput.MousedP = {};
             
             MSG Message;

@@ -190,6 +190,8 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     
     if (NeedsReload)
     {
+        Context.FlushFramesInFlight();
+        
         ID3D12Device *D = Context.Device;
         
         b32 ShadersAreValid = true;
@@ -234,7 +236,8 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     f32 Speed = 0.1f;
     Camera.P += Speed * dP;
     
-    Context.Reset();
+    UINT CurrBackbufferIndex = SwapChain->GetCurrentBackBufferIndex();
+    Context.Reset(CurrBackbufferIndex);
     ID3D12GraphicsCommandList *CmdList = Context.CmdList;
     ID3D12CommandQueue *CmdQueue = Context.CmdQueue;
     
@@ -551,7 +554,8 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     
     SwapChain->Present(1, 0);
     
-    Context.WaitForGpu();
+    UINT NextBackbufferIndex = SwapChain->GetCurrentBackBufferIndex();
+    Context.WaitForGpu(NextBackbufferIndex);
     
     Time += 1.0f/60.0f;
     FrameIndex += 1;

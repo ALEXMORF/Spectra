@@ -40,21 +40,31 @@ struct texture
     descriptor SRV;
 };
 
+struct frame_context
+{
+    ID3D12CommandAllocator *CmdAllocator;
+    UINT64 FenceValue;
+    ID3D12Fence *Fence;
+    HANDLE FenceEvent;
+};
+
+#define FRAMES_IN_FLIGHT 2
+
 struct gpu_context
 {
     ID3D12Device *Device;
-    ID3D12CommandAllocator *CmdAllocator;
     ID3D12GraphicsCommandList *CmdList;
     ID3D12CommandQueue *CmdQueue;
-    ID3D12Fence *Fence;
-    HANDLE FenceEvent;
-    UINT64 FenceValue;
+    frame_context Frames[FRAMES_IN_FLIGHT];
+    
+    UINT BI;
     
     D3D12_RESOURCE_BARRIER CachedBarriers[16];
     int CachedBarrierCount;
     
-    void Reset();
-    void WaitForGpu();
+    void Reset(UINT BackbufferIndex);
+    void WaitForGpu(UINT NextBackbufferIndex);
+    void FlushFramesInFlight();
     
     void UAVBarrier(texture *Tex);
     void TransitionBarrier(texture *Tex, D3D12_RESOURCE_STATES NewState);
@@ -72,6 +82,20 @@ struct gpu_context
 //
 // GPU context
 
+internal frame_context
+InitFrameContext(ID3D12Device *D)
+{
+    frame_context Context = {};
+    
+    DXOP(D->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+                                   IID_PPV_ARGS(&Context.CmdAllocator)));
+    
+    DXOP(D->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Context.Fence)));
+    Context.FenceEvent = CreateEventA(0, 0, FALSE, 0);
+    
+    return Context;
+}
+
 internal gpu_context
 InitGPUContext(ID3D12Device *D)
 {
@@ -84,36 +108,55 @@ InitGPUContext(ID3D12Device *D)
     CmdQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     DXOP(D->CreateCommandQueue(&CmdQueueDesc, IID_PPV_ARGS(&Context.CmdQueue)));
     
-    DXOP(D->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
-                                   IID_PPV_ARGS(&Context.CmdAllocator)));
+    for (int FrameI = 0; FrameI < FRAMES_IN_FLIGHT; ++FrameI)
+    {
+        Context.Frames[FrameI] = InitFrameContext(D);
+    }
     
     DXOP(D->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
-                              Context.CmdAllocator, 0,
+                              Context.Frames[0].CmdAllocator, 0,
                               IID_PPV_ARGS(&Context.CmdList)));
     DXOP(Context.CmdList->Close());
-    
-    DXOP(D->CreateFence(Context.FenceValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&Context.Fence)));
-    Context.FenceEvent = CreateEventA(0, 0, FALSE, 0);
     
     return Context;
 }
 
 void
-gpu_context::Reset()
+gpu_context::Reset(UINT CurrentBackbufferIndex)
 {
-    DXOP(CmdAllocator->Reset());
-    DXOP(CmdList->Reset(CmdAllocator, 0));
+    this->BI = CurrentBackbufferIndex;
+    
+    DXOP(Frames[BI].CmdAllocator->Reset());
+    DXOP(CmdList->Reset(Frames[BI].CmdAllocator, 0));
 }
 
 void 
-gpu_context::WaitForGpu()
+gpu_context::WaitForGpu(UINT NextBI)
 {
-    FenceValue += 1;
-    DXOP(CmdQueue->Signal(Fence, FenceValue));
-    if (Fence->GetCompletedValue() < FenceValue)
+    Frames[BI].FenceValue += 1;
+    DXOP(CmdQueue->Signal(Frames[BI].Fence, Frames[BI].FenceValue));
+    
+    frame_context *NextFrame = Frames + NextBI;
+    
+    if (NextFrame->Fence->GetCompletedValue() < NextFrame->FenceValue)
     {
-        DXOP(Fence->SetEventOnCompletion(FenceValue, FenceEvent));
-        WaitForSingleObject(FenceEvent, INFINITE);
+        DXOP(NextFrame->Fence->SetEventOnCompletion(NextFrame->FenceValue, NextFrame->FenceEvent));
+        WaitForSingleObject(NextFrame->FenceEvent, INFINITE);
+    }
+}
+
+void 
+gpu_context::FlushFramesInFlight()
+{
+    for (int BufferI = 0; BufferI < FRAMES_IN_FLIGHT; ++BufferI)
+    {
+        frame_context *Frame = Frames + BufferI;
+        
+        if (Frame->Fence->GetCompletedValue() < Frame->FenceValue)
+        {
+            DXOP(Frame->Fence->SetEventOnCompletion(Frame->FenceValue, Frame->FenceEvent));
+            WaitForSingleObject(Frame->FenceEvent, INFINITE);
+        }
     }
 }
 
@@ -523,7 +566,7 @@ texture gpu_context::LoadTexture2D(char *Filename, DXGI_FORMAT Format,
     D3D12_RANGE WriteRange = {0, PaddedTexDataSize};
     StagingBuffer->Unmap(0, &WriteRange);
     
-    Reset();
+    Reset(0);
     
     D3D12_TEXTURE_COPY_LOCATION DestLocation = {};
     DestLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
@@ -543,7 +586,7 @@ texture gpu_context::LoadTexture2D(char *Filename, DXGI_FORMAT Format,
     DXOP(CmdList->Close());
     ID3D12CommandList *CmdLists[] = {CmdList};
     CmdQueue->ExecuteCommandLists(1, CmdLists);
-    WaitForGpu();
+    WaitForGpu(0);
     
     StagingBuffer->Release();
     stbi_image_free(ImageData);

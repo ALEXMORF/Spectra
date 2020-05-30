@@ -52,23 +52,34 @@
 -   account for history out of range [x]
 -   account for failed backprojection [x]
 
-- UI improvements []
--   handle mouse moving-outside of screen []
--   refresh state if window goes inactive []
+- proper platform layer [x]
+-   refresh state if window goes inactive [x]
+-   handle mouse moving-outside of screen [x]
+
+- proper CPU/GPU pipelining [x]
+
+- window resize/fullscreen []
 
 - graceful error msgs []
--   printed msg on screen instead of window msg []
-
-- next event estimation []
--   try cached point clouds []
+-   text rendering system []
+-   printed msg on screen instead of window popup []
 
 - directional light source support []
-
-- better noise []
 
 - filmic tonemap []
 
 - need perf counters []
+
+- next event estimation []
+-   try cached point clouds []
+
+- fix TAA bug []
+-   border pixels flicker []
+-   check flickering in tron []
+
+- better noise []
+
+- first-pass optimizations []
 
 - more material types []
 
