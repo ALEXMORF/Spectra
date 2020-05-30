@@ -52,9 +52,6 @@
 -   account for history out of range [x]
 -   account for failed backprojection [x]
 
-- temporal backproj improvement []
--   use temporal distortion factor []
-
 - UI improvements []
 -   handle mouse moving-outside of screen []
 -   refresh state if window goes inactive []
@@ -74,6 +71,9 @@
 - need perf counters []
 
 - more material types []
+
+- temporal backproj improvement []
+-   use temporal distortion factor []
 
 - volumetric lighting []
 - fog particles []

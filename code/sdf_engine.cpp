@@ -1,26 +1,5 @@
 #include "sdf_engine.h"
 
-// pbrt's implementation
-f32 RadicalInverse(u64 Index, int Base)
-{
-    f32 Result = 0.0f;
-    
-    f32 InvBase = 1.0f / f32(Base);
-    u64 A = Index;
-    u64 ReversedDigits = 0;
-    f32 InvBaseN = 1.0f;
-    while (A)
-    {
-        u64 Next = A / Base;
-        u64 Digit = A - Next * Base;
-        ReversedDigits = ReversedDigits * Base + Digit;
-        InvBaseN *= InvBase;
-        A = Next;
-    }
-    
-    return ReversedDigits * InvBaseN;
-}
-
 void
 engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
 {

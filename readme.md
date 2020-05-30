@@ -1,6 +1,6 @@
 # Spectra
 
-A real-time SDF pathtracer. Edit your SDFs and see the changes happen, live!
+A real-time SDF pathtracer. Edit your SDFs and see it pathtraced interactively.
 
 # Build it
 
@@ -8,7 +8,7 @@ Load cl.exe into environment variable, then invoke code/build.bat to generate th
 
 # Usage
 
-While the application is running, you can edit scene.hlsl and the changes will be hotloaded in real-time. 
+While the application is running, you can edit scene.hlsl and the changes will be hotloaded in real-time.
 
 To make this work, you need to define the following three functions in scene.hlsl file:
 
