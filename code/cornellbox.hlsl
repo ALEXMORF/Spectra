@@ -1,3 +1,5 @@
+#define BIND(D, Id) Q.Dist = min(Q.Dist, D); if (Q.Dist == D) Q.MatId = Id;
+
 float sdBox1(float3 P)
 {
     P -= float3(1, -1.4, -0.5);
@@ -17,6 +19,8 @@ float sdBox2(float3 P)
 point_query Map(float3 P, float Time)
 {
     point_query Q;
+    Q.Dist = 10e31;
+    Q.MatId = -1;
     
     float Container = sdBox(P + float3(0, 0, 1.5), float3(2, 2, 3));
     Container = abs(Container) - 0.01;
@@ -26,24 +30,9 @@ point_query Map(float3 P, float Time)
     float Box1 = sdBox1(P);
     float Box2 = sdBox2(P);
     
-    Q.Dist = min(min(Container, Box1), Box2);
-    
-    if (Q.Dist == Container)
-    {
-        Q.MatId = 0;
-    }
-    else if (Q.Dist == Box1)
-    {
-        Q.MatId = 1;
-    }
-    else if (Q.Dist == Box2)
-    {
-        Q.MatId = 2;
-    }
-    else 
-    {
-        Q.MatId = -1;
-    }
+    BIND(Container, 0);
+    BIND(Box1, 1);
+    BIND(Box2, 2);
     
     return Q;
 }

@@ -65,11 +65,11 @@
 - next event estimation []
 -   try cached point clouds []
 
+- directional light source support []
+
 - better noise []
 
 - filmic tonemap []
-
-- directional light source []
 
 - need perf counters []
 
