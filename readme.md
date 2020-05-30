@@ -8,7 +8,7 @@ Load cl.exe into environment variable, then invoke code/build.bat to generate th
 
 # Usage
 
-While the application is running, you can edit scene.hlsl and the changes will be hotloaded in real-time.
+Build Spectra and run it. While the application is running, you can edit code/scene.hlsl and the changes will be hotloaded in real-time.
 
 To make this work, you need to define the following three functions in scene.hlsl file:
 
