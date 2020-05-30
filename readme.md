@@ -2,6 +2,8 @@
 
 A real-time SDF pathtracer. Edit your SDFs and see it pathtraced interactively.
 
+[LIVE DEMO](https://youtu.be/u7ObOkmmWpE)
+
 # Build it
 
 Load cl.exe into environment variable, then invoke code/build.bat to generate the binary.
