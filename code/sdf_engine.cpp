@@ -1,5 +1,7 @@
 #include "sdf_engine.h"
 
+#include "ui.cpp"
+
 void InitOrResizeUAVTexture2D(ID3D12Device *D, texture *Tex, 
                               int Width, int Height, 
                               DXGI_FORMAT Format,
@@ -121,15 +123,17 @@ void
 engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
                         input *Input, b32 NeedsReload, f32 dT)
 {
+    //NOTE(chen): if window is minimized, don't run at all
+    if (ClientWidth == 0 || ClientHeight == 0) return;
+    
     if (!IsInitialized)
     {
         ID3D12Debug *Debug = 0;
         DXOP(D3D12GetDebugInterface(IID_PPV_ARGS(&Debug)));
         Debug->EnableDebugLayer();
         
-        DXOP(D3D12CreateDevice(0, D3D_FEATURE_LEVEL_11_0, 
-                               IID_PPV_ARGS(&Device)));
-        ID3D12Device *D = Device;
+        ID3D12Device *D = 0;
+        DXOP(D3D12CreateDevice(0, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&D)));
         
         Context = InitGPUContext(D, BACKBUFFER_COUNT);
         
@@ -145,6 +149,8 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         }
         
         DescriptorArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        
+        UISystem = InitUISystem(&Context, &DescriptorArena);
         
         PrimaryPSO = InitComputePSO(D, "../code/primary.hlsl", "main");
         PathTracePSO = InitComputePSO(D, "../code/pathtrace.hlsl", "main");

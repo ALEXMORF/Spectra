@@ -73,6 +73,7 @@ struct gpu_context
     void FlushBarriers();
     void CopyResourceBarriered(texture *Dest, texture *Source);
     
+    void Upload(texture *Tex, void *Data);
     texture LoadTexture2D(char *Filename, DXGI_FORMAT Format, 
                           D3D12_RESOURCE_FLAGS Flags, 
                           D3D12_RESOURCE_STATES ResourceStates);
@@ -537,33 +538,83 @@ InitTexture2D(ID3D12Device *D, int Width, int Height, DXGI_FORMAT Format,
     return Tex;
 }
 
-texture gpu_context::LoadTexture2D(char *Filename, DXGI_FORMAT Format,
-                                   D3D12_RESOURCE_FLAGS Flags, D3D12_RESOURCE_STATES ResourceState)
+int GetChannelCount(DXGI_FORMAT Format)
 {
-    int Width, Height, ChannelCount;
-    u8 *ImageData = stbi_load(Filename, &Width, &Height, &ChannelCount, 0);
+    int ChannelCount = 0;
     
-    //TODO(chen): this routine doesn't handle arb texel formats,
-    //            assert this fact here
-    ASSERT(Format == DXGI_FORMAT_R8G8B8A8_UNORM);
-    ASSERT(ChannelCount == 4);
+    switch (Format)
+    {
+        case DXGI_FORMAT_R8G8B8A8_UNORM:
+        {
+            ChannelCount = 4;
+        } break;
+        
+        case DXGI_FORMAT_R8_UNORM:
+        {
+            ChannelCount = 1;
+        } break;
+        
+        default:
+        {
+            ASSERT(!"unhandled DXGI format");
+        } break;
+    }
     
-    texture Tex = InitTexture2D(Device, Width, Height, Format, Flags, D3D12_RESOURCE_STATE_COPY_DEST);
+    return ChannelCount;
+}
+
+int GetBytesPerTexel(DXGI_FORMAT Format)
+{
+    int Count = 0;
+    
+    switch (Format)
+    {
+        case DXGI_FORMAT_R8G8B8A8_UNORM:
+        {
+            Count = 4;
+        } break;
+        
+        case DXGI_FORMAT_R8_UNORM:
+        {
+            Count = 1;
+        } break;
+        
+        default:
+        {
+            ASSERT(!"unhandled DXGI format");
+        } break;
+    }
+    
+    return Count;
+}
+
+void gpu_context::Upload(texture *Tex, void *TexData)
+{
+    D3D12_RESOURCE_DESC Desc = Tex->Handle->GetDesc();
+    int Width = int(Desc.Width);
+    int Height = int(Desc.Height);
+    DXGI_FORMAT Format = Desc.Format;
     
     D3D12_PLACED_SUBRESOURCE_FOOTPRINT Footprint = {};
     
-    D3D12_RESOURCE_DESC ResourceDesc = Tex.Handle->GetDesc();
-    Device->GetCopyableFootprints(&ResourceDesc, 0, 1, 0, &Footprint, 0, 0, 0);
+    Device->GetCopyableFootprints(&Desc, 0, 1, 0, &Footprint, 0, 0, 0);
     int RowPitch = Footprint.Footprint.RowPitch;
+    int BytesPerPixel = GetBytesPerTexel(Format);
+    int BytesPerRow = BytesPerPixel * Width;
     
     size_t PaddedTexDataSize = Height * RowPitch;
-    u32 *PaddedTexData = (u32 *)calloc(PaddedTexDataSize, 1);
+    u8 *PaddedTexData = (u8 *)calloc(PaddedTexDataSize, 1);
+    
+    u8 *Reader = (u8 *)TexData;
+    u8 *Writer = PaddedTexData;
     for (int Y = 0; Y < Height; ++Y)
     {
-        for (int X = 0; X < Width; ++X)
+        for (int X = 0; X < BytesPerRow; ++X)
         {
-            PaddedTexData[X + Y*(RowPitch/sizeof(u32))] = ((u32 *)ImageData)[X + Y*Height];
+            Writer[X] = Reader[X];
         }
+        Writer += RowPitch;
+        Reader += BytesPerRow;
     }
     
     ID3D12Resource *StagingBuffer = InitBuffer(Device, 
@@ -584,7 +635,7 @@ texture gpu_context::LoadTexture2D(char *Filename, DXGI_FORMAT Format,
     
     D3D12_TEXTURE_COPY_LOCATION DestLocation = {};
     DestLocation.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-    DestLocation.pResource = Tex.Handle;
+    DestLocation.pResource = Tex->Handle;
     DestLocation.SubresourceIndex = 0;
     
     D3D12_TEXTURE_COPY_LOCATION SourceLocation = {};
@@ -592,9 +643,14 @@ texture gpu_context::LoadTexture2D(char *Filename, DXGI_FORMAT Format,
     SourceLocation.pResource = StagingBuffer;
     SourceLocation.PlacedFootprint = Footprint;
     
+    D3D12_RESOURCE_STATES TexState = Tex->ResourceState;
+    
+    TransitionBarrier(Tex, D3D12_RESOURCE_STATE_COPY_DEST);
+    FlushBarriers();
+    
     CmdList->CopyTextureRegion(&DestLocation, 0, 0, 0, &SourceLocation, 0);
     
-    TransitionBarrier(&Tex, ResourceState);
+    TransitionBarrier(Tex, TexState);
     FlushBarriers();
     
     DXOP(CmdList->Close());
@@ -603,8 +659,20 @@ texture gpu_context::LoadTexture2D(char *Filename, DXGI_FORMAT Format,
     WaitForGpu(0);
     
     StagingBuffer->Release();
-    stbi_image_free(ImageData);
     free(PaddedTexData);
+}
+
+texture gpu_context::LoadTexture2D(char *Filename, DXGI_FORMAT Format,
+                                   D3D12_RESOURCE_FLAGS Flags, D3D12_RESOURCE_STATES ResourceState)
+{
+    int Width, Height, ChannelCount;
+    u8 *ImageData = stbi_load(Filename, &Width, &Height, &ChannelCount, 0);
+    ASSERT(ChannelCount == GetChannelCount(Format));
+    
+    texture Tex = InitTexture2D(Device, Width, Height, Format, Flags, ResourceState);
+    Upload(&Tex, ImageData);
+    
+    stbi_image_free(ImageData);
     
     return Tex;
 }

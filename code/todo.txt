@@ -65,11 +65,12 @@
 - user-defined fog function [x]
 
 - UI system []
+-   rasterize ascii font atlas []
+-   routine for building texture-mapped text blocks []
+
 - graceful error system []
 
 - pull out low-level graphics library []
-
-- directional light source support []
 
 - need perf counters []
 
@@ -77,13 +78,15 @@
 -   enhanced raymarch []
 -   optimized filters []
 
-- temporal backproj improvement []
--   use temporal distortion factor []
+- directional light source support []
 
 - more complex BRDFs []
 
 - multi-temporal-filter approach []
 - path-space filtering []
+
+- temporal backproj improvement []
+-   use temporal distortion factor []
 
 - next event estimation []
 -   try cached point clouds []

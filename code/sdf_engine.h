@@ -13,6 +13,8 @@ internal void Win32MessageBox(char *Title, UINT Type, char *Fmt, ...);
 #include "d3d12_utils.h"
 #include "ch_math.h"
 
+#include "ui.h"
+
 #define BACKBUFFER_COUNT 2
 
 struct input
@@ -33,11 +35,12 @@ struct camera
 
 struct engine
 {
-    ID3D12Device *Device;
     gpu_context Context;
     IDXGISwapChain3 *SwapChain;
     int Width;
     int Height;
+    
+    ui_system UISystem;
     
     descriptor_arena DescriptorArena;
     
