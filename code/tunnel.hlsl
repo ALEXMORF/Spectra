@@ -90,7 +90,7 @@ point_query Map(float3 P, float Time)
     float Tunnel = -(length(P.xy) - 5.0);
     
     BIND(Floor, 0);
-    //BIND(Sphere, 1);
+    BIND(Sphere, 1);
     BIND(Tunnel, 2);
     
     return Q;
@@ -119,7 +119,7 @@ material MapMaterial(int MatId, float3 P, float Time)
     else if (MatId == 2) // tunnel
     {
         Mat.Albedo = float3(0.7, 0.4, 0.3);
-        if (abs(P.y) < 0.3) Mat.Emission = 2;
+        if (abs(P.y) < 0.2) Mat.Emission = 5;
     }
     
     return Mat;

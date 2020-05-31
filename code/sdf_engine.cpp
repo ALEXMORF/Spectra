@@ -1,7 +1,125 @@
 #include "sdf_engine.h"
 
+void InitOrResizeUAVTexture2D(ID3D12Device *D, texture *Tex, 
+                              int Width, int Height, 
+                              DXGI_FORMAT Format,
+                              descriptor_arena *Arena)
+{
+    if (!Tex->Handle)
+    {
+        *Tex = InitTexture2D(D, Width, Height, Format,
+                             D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                             D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        AssignUAV(D, Tex, Arena);
+        
+    }
+    else
+    {
+        descriptor PrevUAV = Tex->UAV;
+        
+        Tex->Handle->Release();
+        *Tex = InitTexture2D(D, Width, Height, Format,
+                             D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+                             D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+        Tex->UAV = PrevUAV;
+        D->CreateUnorderedAccessView(Tex->Handle, 0, 0, 
+                                     Tex->UAV.CPUHandle);
+    }
+}
+
+void 
+engine::InitOrResizeWindowDependentResources()
+{
+    ID3D12Device *D = Context.Device;
+    
+    InitOrResizeUAVTexture2D(D, &NoisyLightTex, Width, Height, 
+                             DXGI_FORMAT_R16G16B16A16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &PositionTex, Width, Height, 
+                             DXGI_FORMAT_R32G32B32A32_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &NormalTex, Width, Height, 
+                             DXGI_FORMAT_R16G16B16A16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &AlbedoTex, Width, Height, 
+                             DXGI_FORMAT_R16G16B16A16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &EmissionTex, Width, Height, 
+                             DXGI_FORMAT_R16G16B16A16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &RayDirTex, Width, Height, 
+                             DXGI_FORMAT_R32G32B32A32_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &DisocclusionTex, Width, Height, 
+                             DXGI_FORMAT_R8_UINT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &PositionHistTex, Width, Height, 
+                             DXGI_FORMAT_R32G32B32A32_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &NormalHistTex, Width, Height, 
+                             DXGI_FORMAT_R16G16B16A16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &LightHistTex, Width, Height, 
+                             DXGI_FORMAT_R16G16B16A16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &LumMomentTex, Width, Height, 
+                             DXGI_FORMAT_R16G16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &LumMomentHistTex, Width, Height, 
+                             DXGI_FORMAT_R16G16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &VarianceTex, Width, Height, 
+                             DXGI_FORMAT_R32_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &NextVarianceTex, Width, Height, 
+                             DXGI_FORMAT_R32_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &GBufferTex, Width, Height, 
+                             DXGI_FORMAT_R32G32B32A32_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &PrevPixelIdTex, Width, Height, 
+                             DXGI_FORMAT_R32G32_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &IntegratedLightTex, Width, Height, 
+                             DXGI_FORMAT_R16G16B16A16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &TempTex, Width, Height, 
+                             DXGI_FORMAT_R16G16B16A16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &TaaOutputTex, Width, Height, 
+                             DXGI_FORMAT_R16G16B16A16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &TaaHistTex, Width, Height, 
+                             DXGI_FORMAT_R16G16B16A16_FLOAT, 
+                             &DescriptorArena);
+    
+    InitOrResizeUAVTexture2D(D, &OutputTex, Width, Height, 
+                             DXGI_FORMAT_R8G8B8A8_UNORM, 
+                             &DescriptorArena);
+}
+
 void
-engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
+engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
+                        input *Input, b32 NeedsReload)
 {
     if (!IsInitialized)
     {
@@ -16,6 +134,8 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         Context = InitGPUContext(D);
         
         SwapChain = CreateSwapChain(Context.CmdQueue, Window, BACKBUFFER_COUNT);
+        Width = ClientWidth;
+        Height = ClientHeight;
         
         for (int I = 0; I < BACKBUFFER_COUNT; ++I)
         {
@@ -50,131 +170,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
             AssignSRV(D, BlueNoiseTexs+I, &DescriptorArena);
         }
         
-        NoisyLightTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                      DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                      D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &NoisyLightTex, &DescriptorArena);
-        
-        PositionTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                    DXGI_FORMAT_R32G32B32A32_FLOAT,
-                                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &PositionTex, &DescriptorArena);
-        
-        NormalTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                  DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &NormalTex, &DescriptorArena);
-        
-        AlbedoTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                  DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &AlbedoTex, &DescriptorArena);
-        
-        EmissionTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                    DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &EmissionTex, &DescriptorArena);
-        
-        RayDirTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                  DXGI_FORMAT_R32G32B32A32_FLOAT,
-                                  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &RayDirTex, &DescriptorArena);
-        
-        DisocclusionTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                        DXGI_FORMAT_R8_UINT,
-                                        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &DisocclusionTex, &DescriptorArena);
-        
-        PositionHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                        DXGI_FORMAT_R32G32B32A32_FLOAT,
-                                        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &PositionHistTex, &DescriptorArena);
-        
-        NormalHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                      DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                      D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                      D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &NormalHistTex, &DescriptorArena);
-        
-        LightHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                     DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                     D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &LightHistTex, &DescriptorArena);
-        
-        LumMomentTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                     DXGI_FORMAT_R16G16_FLOAT,
-                                     D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &LumMomentTex, &DescriptorArena);
-        
-        LumMomentHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                         DXGI_FORMAT_R16G16_FLOAT,
-                                         D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                         D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &LumMomentHistTex, &DescriptorArena);
-        
-        VarianceTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                    DXGI_FORMAT_R32_FLOAT,
-                                    D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                    D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &VarianceTex, &DescriptorArena);
-        
-        NextVarianceTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                        DXGI_FORMAT_R32_FLOAT,
-                                        D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                        D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &NextVarianceTex, &DescriptorArena);
-        
-        GBufferTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                   DXGI_FORMAT_R32G32B32A32_FLOAT,
-                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &GBufferTex, &DescriptorArena);
-        
-        PrevPixelIdTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                       DXGI_FORMAT_R32G32_FLOAT,
-                                       D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                       D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &PrevPixelIdTex, &DescriptorArena);
-        
-        IntegratedLightTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                           DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                           D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                           D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &IntegratedLightTex, &DescriptorArena);
-        
-        TempTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &TempTex, &DescriptorArena);
-        
-        TaaOutputTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                     DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                     D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                     D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &TaaOutputTex, &DescriptorArena);
-        
-        TaaHistTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                   DXGI_FORMAT_R16G16B16A16_FLOAT,
-                                   D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                   D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &TaaHistTex, &DescriptorArena);
-        
-        OutputTex = InitTexture2D(D, WIDTH, HEIGHT, 
-                                  DXGI_FORMAT_R8G8B8A8_UNORM,
-                                  D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-                                  D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-        AssignUAV(D, &OutputTex, &DescriptorArena);
+        InitOrResizeWindowDependentResources();
         
         Camera.P = {0.0f, 0.0f, -4.0f};
         Camera.Orientation = Quaternion();
@@ -186,6 +182,31 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
         }
         
         IsInitialized = true;
+    }
+    
+    if (ClientWidth != Width || ClientHeight != Height)
+    {
+        Context.FlushFramesInFlight();
+        
+        Width = ClientWidth;
+        Height = ClientHeight;
+        
+        InitOrResizeWindowDependentResources();
+        
+        for (int BI = 0; BI < BACKBUFFER_COUNT; ++BI)
+        {
+            BackBufferTexs[BI].Handle->Release();
+        }
+        
+        DXOP(SwapChain->ResizeBuffers(BACKBUFFER_COUNT, 0, 0,
+                                      DXGI_FORMAT_R8G8B8A8_UNORM, 0));
+        
+        for (int BI = 0; BI < BACKBUFFER_COUNT; ++BI)
+        {
+            ID3D12Resource *BackBuffer = 0;
+            SwapChain->GetBuffer(BI, IID_PPV_ARGS(&BackBuffer));
+            BackBufferTexs[BI] = WrapTexture(BackBuffer, D3D12_RESOURCE_STATE_PRESENT);
+        }
     }
     
     if (NeedsReload)
@@ -216,7 +237,7 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     // camera orientation
     if (Input->MouseDown)
     {
-        v2 MousedP = {f32(Input->MousedP.X) / f32(WIDTH), f32(Input->MousedP.Y) / f32(HEIGHT)};
+        v2 MousedP = {f32(Input->MousedP.X) / f32(Width), f32(Input->MousedP.Y) / f32(Height)};
         quaternion XRot = Quaternion(YAxis(), MousedP.X * Pi32);
         Camera.Orientation = XRot * Camera.Orientation;
         
@@ -241,10 +262,8 @@ engine::UpdateAndRender(HWND Window, input *Input, b32 NeedsReload)
     ID3D12GraphicsCommandList *CmdList = Context.CmdList;
     ID3D12CommandQueue *CmdQueue = Context.CmdQueue;
     
-    int ThreadGroupCountX = (WIDTH-1)/32 + 1;
-    int ThreadGroupCountY = (HEIGHT-1)/32 + 1;
-    int Width = WIDTH;
-    int Height = HEIGHT;
+    int ThreadGroupCountX = (Width-1)/32 + 1;
+    int ThreadGroupCountY = (Height-1)/32 + 1;
     
     v3 CamOffset = Rotate(ZAxis(), Camera.Orientation);
     v3 CamAt = Camera.P + CamOffset;

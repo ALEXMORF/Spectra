@@ -58,7 +58,9 @@
 
 - proper CPU/GPU pipelining [x]
 
-- window resize/fullscreen []
+- window resize/fullscreen [x]
+
+- user-defined fog function []
 
 - graceful error msgs []
 -   text rendering system []

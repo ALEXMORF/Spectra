@@ -9,6 +9,8 @@ struct descriptor
 {
     D3D12_CPU_DESCRIPTOR_HANDLE CPUHandle;
     D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle;
+    
+    b32 IsValid();
 };
 
 struct descriptor_arena
@@ -254,12 +256,22 @@ CreateSwapChain(ID3D12CommandQueue *CmdQueue,
                                           &SwapChain1));
     DXOP(SwapChain1->QueryInterface(IID_PPV_ARGS(&SwapChain)));
     
+    //NOTE(chen): tells windows to get the fuck out of my business
+    //            I will handle resize/fullscreen myself goddamn it
+    DXOP(Factory2->MakeWindowAssociation(Window, DXGI_MWA_NO_WINDOW_CHANGES|DXGI_MWA_NO_ALT_ENTER|DXGI_MWA_NO_PRINT_SCREEN));
+    
     return SwapChain;
 }
 
 //
 //
 // descriptors
+
+b32 
+descriptor::IsValid()
+{
+    return GPUHandle.ptr != 0;
+}
 
 internal descriptor_arena
 InitDescriptorArena(ID3D12Device *D, int Count, 

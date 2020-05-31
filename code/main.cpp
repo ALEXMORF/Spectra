@@ -7,6 +7,9 @@
 #include <windowsx.h>
 
 global bool gAppIsDone;
+global int gClientWidth = 1280;
+global int gClientHeight = 720;
+global input gInput;
 
 internal void
 Win32MessageBox(char *Title, UINT Type, char *Fmt, ...)
@@ -36,7 +39,35 @@ Win32Panic(char *Fmt, ...)
     ExitProcess(1);
 }
 
-global input gInput;
+global WINDOWPLACEMENT GlobalWindowPosition;
+internal void
+Win32ToggleFullscreen(HWND Window)
+{
+    DWORD Style = GetWindowLong(Window, GWL_STYLE);
+    if (Style & WS_OVERLAPPEDWINDOW)
+    {
+        MONITORINFO mi = { sizeof(mi) };
+        if (GetWindowPlacement(Window, &GlobalWindowPosition) &&
+            GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &mi))
+        {
+            SetWindowLong(Window, GWL_STYLE,
+                          Style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(Window, HWND_TOP,
+                         mi.rcMonitor.left, mi.rcMonitor.top,
+                         mi.rcMonitor.right - mi.rcMonitor.left,
+                         mi.rcMonitor.bottom - mi.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+    else
+    {
+        SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(Window, &GlobalWindowPosition);
+        SetWindowPos(Window, NULL, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                     SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+}
 
 LRESULT CALLBACK 
 Win32WindowCallback(HWND Window, UINT Message, 
@@ -76,16 +107,24 @@ Win32WindowCallback(HWND Window, UINT Message,
                 gInput.Keys[WParam] = 0;
             }
             
-            if (KeyIsDown)
+            if (KeyWasDown != KeyIsDown)
             {
-                if (WParam == VK_ESCAPE)
+                if (KeyIsDown)
                 {
-                    gAppIsDone = true;
-                }
-                
-                if (AltIsDown && WParam == VK_F4)
-                {
-                    gAppIsDone = true;
+                    if (WParam == VK_ESCAPE)
+                    {
+                        gAppIsDone = true;
+                    }
+                    
+                    if (AltIsDown && WParam == VK_F4)
+                    {
+                        gAppIsDone = true;
+                    }
+                    
+                    if (AltIsDown && WParam == VK_RETURN)
+                    {
+                        Win32ToggleFullscreen(Window);
+                    }
                 }
             }
         } break;
@@ -135,6 +174,12 @@ Win32WindowCallback(HWND Window, UINT Message,
         case WM_MOUSELEAVE:
         {
             gInput.MouseDown = false;
+        } break;
+        
+        case WM_SIZE:
+        {
+            gClientWidth = LOWORD(LParam);
+            gClientHeight = HIWORD(LParam);
         } break;
         
         default:
@@ -238,8 +283,8 @@ WinMain(HINSTANCE Instance,
         RECT WindowRect = {};
         WindowRect.left = 0;
         WindowRect.top = 0;
-        WindowRect.right = WIDTH;
-        WindowRect.bottom = HEIGHT;
+        WindowRect.right = gClientWidth;
+        WindowRect.bottom = gClientHeight;
         
         DWORD WindowStyle = WS_OVERLAPPEDWINDOW|WS_VISIBLE;
         
@@ -292,7 +337,8 @@ WinMain(HINSTANCE Instance,
                 }
             }
             
-            Engine.UpdateAndRender(Window, &gInput, NeedsReload);
+            Engine.UpdateAndRender(Window, gClientWidth, gClientHeight,
+                                   &gInput, NeedsReload);
             
             Sleep(2);
         }

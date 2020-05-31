@@ -13,8 +13,6 @@ internal void Win32MessageBox(char *Title, UINT Type, char *Fmt, ...);
 #include "d3d12_utils.h"
 #include "ch_math.h"
 
-#define WIDTH 1280
-#define HEIGHT 720
 #define BACKBUFFER_COUNT 2
 
 struct input
@@ -38,6 +36,8 @@ struct engine
     ID3D12Device *Device;
     gpu_context Context;
     IDXGISwapChain3 *SwapChain;
+    int Width;
+    int Height;
     
     descriptor_arena DescriptorArena;
     
@@ -92,5 +92,7 @@ struct engine
     int FrameIndex;
     b32 IsInitialized;
     
-    void UpdateAndRender(HWND Window, input *Input, b32 NeedsReload);
+    void UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
+                         input *Input, b32 NeedsReload);
+    void InitOrResizeWindowDependentResources();
 };
