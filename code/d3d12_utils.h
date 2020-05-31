@@ -362,16 +362,11 @@ file ReadBinaryFile(char *Path)
     return ReadEntireFile(Path, 0);
 }
 
-internal b32
-VerifyComputeShader(char *Filename, char *EntryPoint)
+internal ID3DBlob *
+CompileShader(file File, char *Filename, char *EntryPoint, char *Target,
+              b32 *HasError_Out)
 {
-    file File = ReadTextFile(Filename);
-    if (!File.Data)
-    {
-        Win32MessageBox("Shader Load Failure", MB_OK|MB_ICONERROR, 
-                        "Failed to load shader %s", Filename);
-        return false;
-    }
+    bool Failed = false;
     
     //NOTE(chen): for whatever reason, d3d compiler's preprocessor is really
     //            bad at fetching include files. Numerously times it fails to
@@ -384,15 +379,13 @@ VerifyComputeShader(char *Filename, char *EntryPoint)
     ID3DBlob *ErrorBlob;
     while (FAILED(D3DCompile(File.Data, File.Size, Filename,
                              0, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-                             EntryPoint, "cs_5_1", 0, 0,
+                             EntryPoint, Target, 0, 0,
                              &CodeBlob, &ErrorBlob)))
     {
         if (Attempts == MaxAttempt)
         {
-            char *ErrorMsg = (char *)ErrorBlob->GetBufferPointer();
-            Win32MessageBox("Shader Compile Error", MB_OK|MB_ICONERROR, "%s", ErrorMsg);
-            ErrorBlob->Release();
-            return false;
+            Failed = true;
+            break;
         }
         
         ErrorBlob->Release();
@@ -400,9 +393,34 @@ VerifyComputeShader(char *Filename, char *EntryPoint)
         Attempts += 1;
     }
     
-    CodeBlob->Release();
+    *HasError_Out = Failed;
+    return Failed? ErrorBlob: CodeBlob;
+}
+
+internal b32
+VerifyComputeShader(char *Filename, char *EntryPoint)
+{
+    file File = ReadTextFile(Filename);
+    if (!File.Data)
+    {
+        Win32MessageBox("Shader Load Failure", MB_OK|MB_ICONERROR, 
+                        "Failed to load shader %s", Filename);
+        return false;
+    }
+    
+    b32 HasError = 0;
+    ID3DBlob *Blob = CompileShader(File, Filename, EntryPoint, "cs_5_1", &HasError);
     free(File.Data);
     
+    if (HasError)
+    {
+        char *ErrorMsg = (char *)Blob->GetBufferPointer();
+        Win32MessageBox("Shader Compile Error", MB_OK|MB_ICONERROR, "%s", ErrorMsg);
+        Blob->Release();
+        return false;
+    }
+    
+    Blob->Release();
     return true;
 }
 
@@ -418,33 +436,16 @@ InitComputePSO(ID3D12Device *D, char *Filename, char *EntryPoint)
         return PSO;
     }
     
-    //NOTE(chen): for whatever reason, d3d compiler's preprocessor is really
-    //            bad at fetching include files. Numerously times it fails to
-    //            open include files when the file are already there ...
-    //
-    //            this especially poses a problem with shader hotloading
-    int MaxAttempt = 10;
-    int Attempts = 0;
-    ID3DBlob *CodeBlob; 
-    ID3DBlob *ErrorBlob;
-    while (FAILED(D3DCompile(File.Data, File.Size, Filename,
-                             0, D3D_COMPILE_STANDARD_FILE_INCLUDE,
-                             EntryPoint, "cs_5_1", 0, 0,
-                             &CodeBlob, &ErrorBlob)))
+    b32 HasError = 0;
+    ID3DBlob *Blob = CompileShader(File, Filename, EntryPoint, "cs_5_1", &HasError);
+    free(File.Data);
+    if (HasError)
     {
-        if (Attempts == MaxAttempt)
-        {
-            char *ErrorMsg = (char *)ErrorBlob->GetBufferPointer();
-            Win32Panic("Shader compile error: %s", ErrorMsg);
-            break;
-        }
-        
-        ErrorBlob->Release();
-        Sleep(1); // try wait for file to come back online ....
-        Attempts += 1;
+        Win32Panic("Shader compile error: %s", Blob->GetBufferPointer());
+        return PSO;
     }
     
-    free(File.Data);
+    ID3DBlob *CodeBlob = Blob;
     
     ID3D12RootSignatureDeserializer *RSExtractor = 0;
     DXOP(D3D12CreateRootSignatureDeserializer(CodeBlob->GetBufferPointer(),

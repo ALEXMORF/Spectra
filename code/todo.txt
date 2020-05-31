@@ -65,10 +65,15 @@
 - user-defined fog function [x]
 
 - UI system []
--   rasterize ascii font atlas []
+-   rasterize ascii font atlas [x]
+-   refactor PSO creation & verification code [x]
+-   create graphics PSO creation routine []
+-   build PSO for text rasterization []
 -   routine for building texture-mapped text blocks []
 
 - graceful error system []
+
+- finish tunnel []
 
 - pull out low-level graphics library []
 
