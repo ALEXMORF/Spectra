@@ -131,7 +131,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
                                IID_PPV_ARGS(&Device)));
         ID3D12Device *D = Device;
         
-        Context = InitGPUContext(D);
+        Context = InitGPUContext(D, BACKBUFFER_COUNT);
         
         SwapChain = CreateSwapChain(Context.CmdQueue, Window, BACKBUFFER_COUNT);
         Width = ClientWidth;

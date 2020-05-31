@@ -50,14 +50,14 @@ struct frame_context
     HANDLE FenceEvent;
 };
 
-#define FRAMES_IN_FLIGHT 2
-
 struct gpu_context
 {
     ID3D12Device *Device;
     ID3D12GraphicsCommandList *CmdList;
     ID3D12CommandQueue *CmdQueue;
-    frame_context Frames[FRAMES_IN_FLIGHT];
+    
+    frame_context *Frames;
+    int FramesInFlight;
     
     UINT BI;
     
@@ -99,10 +99,11 @@ InitFrameContext(ID3D12Device *D)
 }
 
 internal gpu_context
-InitGPUContext(ID3D12Device *D)
+InitGPUContext(ID3D12Device *D, int FramesInFlight)
 {
     gpu_context Context = {};
     Context.Device = D;
+    Context.FramesInFlight = FramesInFlight;
     
     D3D12_COMMAND_QUEUE_DESC CmdQueueDesc = {};
     CmdQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -110,7 +111,8 @@ InitGPUContext(ID3D12Device *D)
     CmdQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     DXOP(D->CreateCommandQueue(&CmdQueueDesc, IID_PPV_ARGS(&Context.CmdQueue)));
     
-    for (int FrameI = 0; FrameI < FRAMES_IN_FLIGHT; ++FrameI)
+    Context.Frames = (frame_context *)calloc(FramesInFlight, sizeof(frame_context));
+    for (int FrameI = 0; FrameI < Context.FramesInFlight; ++FrameI)
     {
         Context.Frames[FrameI] = InitFrameContext(D);
     }
@@ -150,7 +152,7 @@ gpu_context::WaitForGpu(UINT NextBI)
 void 
 gpu_context::FlushFramesInFlight()
 {
-    for (int BufferI = 0; BufferI < FRAMES_IN_FLIGHT; ++BufferI)
+    for (int BufferI = 0; BufferI < FramesInFlight; ++BufferI)
     {
         frame_context *Frame = Frames + BufferI;
         

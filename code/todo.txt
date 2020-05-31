@@ -64,9 +64,10 @@
 
 - user-defined fog function [x]
 
-- graceful error msgs []
--   text rendering system []
--   printed msg on screen instead of window popup []
+- UI system []
+- graceful error system []
+
+- pull out low-level graphics library []
 
 - directional light source support []
 
@@ -81,6 +82,9 @@
 
 - more complex BRDFs []
 
+- multi-temporal-filter approach []
+- path-space filtering []
+
 - next event estimation []
 -   try cached point clouds []
 
@@ -94,5 +98,3 @@
 - fog particles []
 
 - generate blue noise with even temporal distribution []
-
-- multi-temporal-filter approach []
