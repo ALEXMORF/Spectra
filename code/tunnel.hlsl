@@ -106,8 +106,9 @@ material MapMaterial(int MatId, float3 P, float Time)
     {
         Mat.Albedo = 0.1;
         
-        P.xz += 0.2*fbm2(5.0*float2(P.x, 0.1*P.z));
-        if (abs(P.x) < 0.3 && frac(0.1*P.z) < 0.8) 
+        float2 Deterioration = 0.1*fbm2(5.0*P.xz);
+        if (abs(P.x) < 0.3+Deterioration.x && 
+            frac(0.1*P.z) < 0.8+Deterioration.y) 
         {
             Mat.Albedo = float3(0.8, 0.8, 0.1);
         }
@@ -128,4 +129,9 @@ material MapMaterial(int MatId, float3 P, float Time)
 float3 Env(float3 Rd, float Time)
 {
     return 0.0 * float3(0.3, 0.4, 0.5);
+}
+
+float Fog(float Depth)
+{
+    return clamp(1.0 - Depth / 100.0, 0, 1);
 }

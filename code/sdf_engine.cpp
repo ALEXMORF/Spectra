@@ -503,6 +503,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         CmdList->SetComputeRootDescriptorTable(3, EmissionTex.UAV.GPUHandle);
         CmdList->SetComputeRootDescriptorTable(4, RayDirTex.UAV.GPUHandle);
         CmdList->SetComputeRoot32BitConstants(5, 1, &Time, 0);
+        CmdList->SetComputeRoot32BitConstants(5, 3, &Camera.P, 1);
         CmdList->Dispatch(ThreadGroupCountX, ThreadGroupCountY, 1);
         
         Context.UAVBarrier(&IntegratedLightTex);

@@ -21,18 +21,25 @@ point_query Map(float3 P, float Time)
 {
   // define geometry
 }
+
 material MapMaterial(int MatId, float3 P, float Time)
 {
   // define material
 }
+
 float3 Env(float3 Rd, float Time)
 {
   // define environment lighting
 }
 
+float Fog(float Depth)
+{
+  // define fog attenuation
+}
+
 ```
 
-To see how these functions are getting called, check out raymarch.hlsl.
+To see how these functions are getting called, check out raymarch.hlsl and primary_shading.hlsl.
 
 # Examples
 

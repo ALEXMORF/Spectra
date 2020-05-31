@@ -52,3 +52,8 @@ float3 Env(float3 Rd, float Time)
 {
     return 1.00*float3(0.3, 0.4, 0.5);
 }
+
+float Fog(float Depth)
+{
+    return 1.0;
+}

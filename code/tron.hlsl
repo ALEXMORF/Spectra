@@ -44,3 +44,8 @@ float3 Env(float3 Rd, float Time)
 {
     return 0;
 }
+
+float Fog(float Depth)
+{
+    return 1.0;
+}

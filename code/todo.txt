@@ -62,7 +62,7 @@
 
 - framerate-independence [x]
 
-- user-defined fog function []
+- user-defined fog function [x]
 
 - graceful error msgs []
 -   text rendering system []

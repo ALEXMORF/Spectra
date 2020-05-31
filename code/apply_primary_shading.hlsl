@@ -1,4 +1,4 @@
-#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), RootConstants(num32BitConstants=1, b0)"
+#define RS "DescriptorTable(UAV(u0)), DescriptorTable(UAV(u1)), DescriptorTable(UAV(u2)), DescriptorTable(UAV(u3)), DescriptorTable(UAV(u4)), RootConstants(num32BitConstants=4, b0)"
 
 #include "constants.hlsl"
 #include "scene.hlsl"
@@ -12,6 +12,7 @@ RWTexture2D<float4> RayDirTex: register(u4);
 struct context
 {
     float Time;
+    float3 CamP;
 };
 
 ConstantBuffer<context> Context: register(b0);
@@ -31,14 +32,8 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         float3 FirstBrdf = Albedo;
         float3 Radiance = FirstBrdf*Illumination + Emission;
         
-        // mark disoccluded regions as purple
-#if 0
-        float SampleCount = LightTex[ThreadId].a;
-        if (SampleCount < 4)
-        {
-            Radiance = float3(1, 0, 1);
-        }
-#endif
+        float Depth = length(Context.CamP - P);
+        Radiance *= Fog(Depth);
         
         LightTex[ThreadId] = float4(Radiance, 1.0);
     }

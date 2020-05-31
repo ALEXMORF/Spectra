@@ -27,11 +27,12 @@ float sdBox(float3 P, float3 Radius)
 //point_query Map(float3 P, float Time);
 //material MapMaterial(int MatId, float3 P, float Time);
 //float3 Env(float3 Rd, float Time);
+//float Fog(float Depth);
 
 //#include "demo.hlsl"
-//#include "tunnel.hlsl"
+#include "tunnel.hlsl"
 //#include "sphere2.hlsl"
-#include "cornellbox.hlsl"
+//#include "cornellbox.hlsl"
 //#include "tron.hlsl"
 //#include "coolbox.hlsl"
 //#include "interior.hlsl"
