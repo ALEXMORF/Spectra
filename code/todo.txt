@@ -60,6 +60,8 @@
 
 - window resize/fullscreen [x]
 
+- framerate-independence [x]
+
 - user-defined fog function []
 
 - graceful error msgs []
@@ -68,9 +70,16 @@
 
 - directional light source support []
 
-- filmic tonemap []
-
 - need perf counters []
+
+- optimizations []
+-   enhanced raymarch []
+-   optimized filters []
+
+- temporal backproj improvement []
+-   use temporal distortion factor []
+
+- more complex BRDFs []
 
 - next event estimation []
 -   try cached point clouds []
@@ -80,13 +89,6 @@
 -   check flickering in tron []
 
 - better noise []
-
-- first-pass optimizations []
-
-- more material types []
-
-- temporal backproj improvement []
--   use temporal distortion factor []
 
 - volumetric lighting []
 - fog particles []

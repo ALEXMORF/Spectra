@@ -119,7 +119,7 @@ engine::InitOrResizeWindowDependentResources()
 
 void
 engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
-                        input *Input, b32 NeedsReload)
+                        input *Input, b32 NeedsReload, f32 dT)
 {
     if (!IsInitialized)
     {
@@ -183,6 +183,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         
         IsInitialized = true;
     }
+    Time += dT;
     
     if (ClientWidth != Width || ClientHeight != Height)
     {
@@ -254,8 +255,8 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
     if (Input->Keys['D']) dP.X += 1.0f;
     dP = Normalize(dP);
     dP = Rotate(dP, Camera.Orientation);
-    f32 Speed = 0.1f;
-    Camera.P += Speed * dP;
+    f32 Speed = 5.0f;
+    Camera.P += Speed * dP * dT;
     
     UINT CurrBackbufferIndex = SwapChain->GetCurrentBackBufferIndex();
     Context.Reset(CurrBackbufferIndex);
@@ -576,7 +577,6 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
     UINT NextBackbufferIndex = SwapChain->GetCurrentBackBufferIndex();
     Context.WaitForGpu(NextBackbufferIndex);
     
-    Time += 1.0f/60.0f;
     FrameIndex += 1;
     PrevCamera = Camera;
 }

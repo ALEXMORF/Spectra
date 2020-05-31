@@ -93,6 +93,6 @@ struct engine
     b32 IsInitialized;
     
     void UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
-                         input *Input, b32 NeedsReload);
+                         input *Input, b32 NeedsReload, f32 dT);
     void InitOrResizeWindowDependentResources();
 };

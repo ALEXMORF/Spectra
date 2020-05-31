@@ -307,6 +307,12 @@ WinMain(HINSTANCE Instance,
         
         TrackAllCodeFiles();
         
+        LARGE_INTEGER BeginCounter = {};
+        LARGE_INTEGER EndCounter = {};
+        QueryPerformanceCounter(&BeginCounter);
+        LARGE_INTEGER CounterFreqency = {};
+        QueryPerformanceFrequency(&CounterFreqency);
+        size_t TicksPerSec = CounterFreqency.QuadPart;
         while (!gAppIsDone)
         {
             TRACKMOUSEEVENT EventToTrack = {};
@@ -337,10 +343,13 @@ WinMain(HINSTANCE Instance,
                 }
             }
             
+            QueryPerformanceCounter(&EndCounter);
+            f32 dT = f32(EndCounter.QuadPart - BeginCounter.QuadPart) / f32(TicksPerSec);
+            QueryPerformanceCounter(&BeginCounter);
             Engine.UpdateAndRender(Window, gClientWidth, gClientHeight,
-                                   &gInput, NeedsReload);
+                                   &gInput, NeedsReload, dT);
             
-            Sleep(2);
+            Sleep(1);
         }
     }
     else
