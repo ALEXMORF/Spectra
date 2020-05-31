@@ -424,6 +424,36 @@ VerifyComputeShader(char *Filename, char *EntryPoint)
     return true;
 }
 
+internal ID3D12RootSignature *
+ReflectRootSignature(ID3D12Device *D, ID3DBlob *CodeBlob, 
+                     ID3DBlob **RSErrorBlob_Out)
+{
+    ID3D12RootSignature *Result = 0;
+    
+    ID3D12RootSignatureDeserializer *RSExtractor = 0;
+    DXOP(D3D12CreateRootSignatureDeserializer(CodeBlob->GetBufferPointer(),
+                                              CodeBlob->GetBufferSize(), IID_PPV_ARGS(&RSExtractor)));
+    const D3D12_ROOT_SIGNATURE_DESC *RSDesc = RSExtractor->GetRootSignatureDesc();
+    
+    ID3DBlob *RSBlob = 0;
+    ID3DBlob *RSErrorBlob = 0;
+    if (SUCCEEDED(D3D12SerializeRootSignature(RSDesc, 
+                                              D3D_ROOT_SIGNATURE_VERSION_1,
+                                              &RSBlob, &RSErrorBlob)))
+    {
+        DXOP(D->CreateRootSignature(0, RSBlob->GetBufferPointer(),
+                                    RSBlob->GetBufferSize(),
+                                    IID_PPV_ARGS(&Result)));
+        RSBlob->Release();
+    }
+    else
+    {
+        *RSErrorBlob_Out = RSErrorBlob;
+    }
+    
+    return Result;
+}
+
 internal pso
 InitComputePSO(ID3D12Device *D, char *Filename, char *EntryPoint)
 {
@@ -442,36 +472,99 @@ InitComputePSO(ID3D12Device *D, char *Filename, char *EntryPoint)
     if (HasError)
     {
         Win32Panic("Shader compile error: %s", Blob->GetBufferPointer());
+        Blob->Release();
         return PSO;
     }
     
     ID3DBlob *CodeBlob = Blob;
     
-    ID3D12RootSignatureDeserializer *RSExtractor = 0;
-    DXOP(D3D12CreateRootSignatureDeserializer(CodeBlob->GetBufferPointer(),
-                                              CodeBlob->GetBufferSize(), IID_PPV_ARGS(&RSExtractor)));
-    const D3D12_ROOT_SIGNATURE_DESC *RSDesc = RSExtractor->GetRootSignatureDesc();
-    
-    ID3DBlob *RSBlob = 0;
     ID3DBlob *RSErrorBlob = 0;
-    if (FAILED(D3D12SerializeRootSignature(RSDesc, 
-                                           D3D_ROOT_SIGNATURE_VERSION_1,
-                                           &RSBlob, &RSErrorBlob)))
+    PSO.RootSignature = ReflectRootSignature(D, CodeBlob, &RSErrorBlob);
+    if (!PSO.RootSignature)
     {
         char *ErrorMsg = (char *)RSErrorBlob->GetBufferPointer();
         Win32Panic("Root Signature serialization error: %s", ErrorMsg);
+        RSErrorBlob->Release();
     }
-    DXOP(D->CreateRootSignature(0, RSBlob->GetBufferPointer(),
-                                RSBlob->GetBufferSize(),
-                                IID_PPV_ARGS(&PSO.RootSignature)));
     
     D3D12_COMPUTE_PIPELINE_STATE_DESC PSODesc = {};
     PSODesc.pRootSignature = PSO.RootSignature;
     PSODesc.CS = {CodeBlob->GetBufferPointer(), CodeBlob->GetBufferSize()};
     DXOP(D->CreateComputePipelineState(&PSODesc, IID_PPV_ARGS(&PSO.Handle)));
     
-    RSBlob->Release();
     CodeBlob->Release();
+    
+    return PSO;
+}
+
+internal pso
+InitGraphicsPSO(ID3D12Device *D, char *Filename, 
+                D3D12_INPUT_ELEMENT_DESC *InputElements, int InputElementCount)
+{
+    pso PSO = {};
+    
+    file File = ReadTextFile(Filename);
+    if (!File.Data)
+    {
+        Win32Panic("Failed to load shader file: %s", Filename);
+        return PSO;
+    }
+    
+    b32 HasError = 0;
+    ID3DBlob *VSBlob = CompileShader(File, Filename, "VS", "vs_5_1", &HasError);
+    if (HasError)
+    {
+        Win32Panic("VS Shader compile error: %s", VSBlob->GetBufferPointer());
+        VSBlob->Release();
+        return PSO;
+    }
+    
+    ID3DBlob *PSBlob = CompileShader(File, Filename, "PS", "ps_5_1", &HasError);
+    if (HasError)
+    {
+        Win32Panic("PS Shader compile error: %s", PSBlob->GetBufferPointer());
+        PSBlob->Release();
+        return PSO;
+    }
+    
+    free(File.Data);
+    
+    ID3DBlob *RSErrorBlob = 0;
+    PSO.RootSignature = ReflectRootSignature(D, VSBlob, &RSErrorBlob);
+    if (!PSO.RootSignature)
+    {
+        char *ErrorMsg = (char *)RSErrorBlob->GetBufferPointer();
+        Win32Panic("Root Signature serialization error: %s", ErrorMsg);
+        RSErrorBlob->Release();
+    }
+    
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC PSODesc = {};
+    PSODesc.pRootSignature = PSO.RootSignature;
+    PSODesc.VS = {VSBlob->GetBufferPointer(), VSBlob->GetBufferSize()};
+    PSODesc.PS = {PSBlob->GetBufferPointer(), PSBlob->GetBufferSize()};
+    PSODesc.BlendState.AlphaToCoverageEnable = FALSE;
+    PSODesc.BlendState.IndependentBlendEnable = FALSE;
+    PSODesc.BlendState.RenderTarget[0].BlendEnable = FALSE;
+    PSODesc.BlendState.RenderTarget[0].LogicOpEnable = FALSE;
+    PSODesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+    PSODesc.SampleMask = UINT_MAX;
+    PSODesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+    PSODesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+    PSODesc.RasterizerState.FrontCounterClockwise = TRUE;
+    PSODesc.DepthStencilState.DepthEnable = FALSE;
+    PSODesc.DepthStencilState.StencilEnable = FALSE;
+    PSODesc.InputLayout.pInputElementDescs = InputElements;
+    PSODesc.InputLayout.NumElements = InputElementCount;
+    PSODesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+    PSODesc.NumRenderTargets = 1;
+    PSODesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+    PSODesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    PSODesc.SampleDesc.Count = 1; // one sample per pixel
+    PSODesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+    DXOP(D->CreateGraphicsPipelineState(&PSODesc, IID_PPV_ARGS(&PSO.Handle)));
+    
+    VSBlob->Release();
+    PSBlob->Release();
     
     return PSO;
 }

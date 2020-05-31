@@ -85,7 +85,9 @@
 
 - directional light source support []
 
-- more complex BRDFs []
+- more complex materials []
+-   specular/metallic []
+-   translucent/refraction []
 
 - multi-temporal-filter approach []
 - path-space filtering []

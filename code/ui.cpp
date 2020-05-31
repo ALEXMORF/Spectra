@@ -81,5 +81,15 @@ InitUISystem(gpu_context *Context, descriptor_arena *DescriptorArena)
     Context->Upload(&System.FontAtlas, AtlasData);
     free(AtlasData);
     
+    D3D12_INPUT_ELEMENT_DESC TextVertInputElements[] = {
+        {"POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+    };
+    
+    System.RasterizeTextPSO = InitGraphicsPSO(Context->Device, 
+                                              "../code/rasterize_text.hlsl", 
+                                              TextVertInputElements,
+                                              ARRAY_COUNT(TextVertInputElements));
+    
     return System;
 }

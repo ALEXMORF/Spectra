@@ -15,4 +15,6 @@ struct ui_system
     int CharYCount;
     int FontWidth;
     int FontHeight;
+    
+    pso RasterizeTextPSO;
 };
