@@ -9,4 +9,10 @@
 struct ui_system
 {
     texture FontAtlas;
+    int BeginCharI;
+    int EndCharI;
+    int CharXCount;
+    int CharYCount;
+    int FontWidth;
+    int FontHeight;
 };

@@ -68,6 +68,12 @@ InitUISystem(gpu_context *Context, descriptor_arena *DescriptorArena)
     }
     free(FileData);
     
+    System.BeginCharI = BeginCharI;
+    System.EndCharI = EndCharI;
+    System.CharXCount = CharXCount;
+    System.CharYCount = CharYCount;
+    System.FontWidth = FontWidth;
+    System.FontHeight = FontHeight;
     System.FontAtlas = InitTexture2D(Context->Device, 
                                      AtlasWidth, AtlasHeight,
                                      DXGI_FORMAT_R8_UNORM, D3D12_RESOURCE_FLAG_NONE,
