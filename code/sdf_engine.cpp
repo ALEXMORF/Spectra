@@ -213,8 +213,6 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
             HaltonSequence[I].Y = RadicalInverse(I+1, 3);
         }
         
-        UISystem.SetErrorMessage(&Context, "Hello world.\nHere's a new line!");
-        
         IsInitialized = true;
     }
     Time += dT;
