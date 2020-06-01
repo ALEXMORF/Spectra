@@ -111,17 +111,25 @@ InitUISystem(gpu_context *Context, descriptor_arena *DescriptorArena)
     return System;
 }
 
-void
-ui_system::DrawString(gpu_context *Context, texture RenderTarget,
-                      v2 Offset, char *String)
+void 
+ui_system::SetErrorMessage(gpu_context *Context, char *String)
 {
     int StringLen = int(strlen(String));
     
-    int TextVertCount = 6 * StringLen;
-    size_t TextVertSize = TextVertCount * sizeof(ui_vertex);
-    ui_vertex *TextVertices = (ui_vertex *)calloc(TextVertCount, sizeof(ui_vertex));
+    int LineCount = 1;
+    for (int I = 0; I < StringLen; ++I)
+    {
+        if (String[I] == '\n')  
+        {
+            LineCount += 1;
+        }
+    }
     
     v2 FontDim = V2(f32(FontWidth)/1280.0f, f32(FontHeight)/720.0f);
+    v2 Offset = {-1.0f, -1.0f + f32(LineCount)*FontDim.Y};
+    
+    TextVertCount = 6 * StringLen;
+    ui_vertex *TextVertices = (ui_vertex *)calloc(TextVertCount, sizeof(ui_vertex));
     
     // build verts
     int Cursor = 0;
@@ -129,70 +137,96 @@ ui_system::DrawString(gpu_context *Context, texture RenderTarget,
     {
         int Code = String[CharI];
         
-        int Index = Code - BeginCharI;
-        
-        int CodePointX = (Index % CharXCount) * FontWidth;
-        int CodePointY = (Index / CharXCount) * FontHeight;
-        
-        f32 U = f32(CodePointX) / f32(AtlasWidth);
-        f32 V = f32(CodePointY) / f32(AtlasHeight);
-        f32 UVWidth = f32(FontWidth) / f32(AtlasWidth);
-        f32 UVHeight = f32(FontHeight) / f32(AtlasHeight);
-        
-        v2 TopLeftP = Offset;
-        v2 BotRightP = TopLeftP + V2(FontDim.X, -FontDim.Y);
-        
-        v2 TopLeftUV = V2(U, V);
-        v2 BotRightUV = TopLeftUV + V2(UVWidth, UVHeight);
-        
-        TextVertices[Cursor++] = {TopLeftP, TopLeftUV};
-        TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightUV.X, TopLeftUV.Y)};
-        TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftUV.X, BotRightUV.Y)};
-        TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftUV.X, BotRightUV.Y)};
-        TextVertices[Cursor++] = {BotRightP, BotRightUV};
-        TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightUV.X, TopLeftUV.Y)};
-        
-        Offset.X += FontDim.X;
+        if (Code >= BeginCharI && Code <= EndCharI)
+        {
+            int Index = Code - BeginCharI;
+            
+            int CodePointX = (Index % CharXCount) * FontWidth;
+            int CodePointY = (Index / CharXCount) * FontHeight;
+            
+            f32 U = f32(CodePointX) / f32(AtlasWidth);
+            f32 V = f32(CodePointY) / f32(AtlasHeight);
+            f32 UVWidth = f32(FontWidth) / f32(AtlasWidth);
+            f32 UVHeight = f32(FontHeight) / f32(AtlasHeight);
+            
+            v2 TopLeftP = Offset;
+            v2 BotRightP = TopLeftP + V2(FontDim.X, -FontDim.Y);
+            
+            v2 TopLeftUV = V2(U, V);
+            v2 BotRightUV = TopLeftUV + V2(UVWidth, UVHeight);
+            
+            TextVertices[Cursor++] = {TopLeftP, TopLeftUV};
+            TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightUV.X, TopLeftUV.Y)};
+            TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftUV.X, BotRightUV.Y)};
+            TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftUV.X, BotRightUV.Y)};
+            TextVertices[Cursor++] = {BotRightP, BotRightUV};
+            TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightUV.X, TopLeftUV.Y)};
+            
+            Offset.X += FontDim.X;
+        }
+        else if (Code == '\n')
+        {
+            Offset.X = -1.0f;
+            Offset.Y -= FontDim.Y;
+        }
+        else
+        {
+            ASSERT(!"Unhandled character");
+        }
     }
     
     // upload verts
-    if (!TextVB)
+    if (TextVB)
     {
+        Context->FlushFramesInFlight();
+        TextVB->Release();
+        TextVB = 0;
+    }
+    
+    if (StringLen > 0)
+    {
+        size_t TextVertSize = TextVertCount * sizeof(ui_vertex);
         TextVB = InitBuffer(Context->Device, TextVertSize,
                             D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ,
                             D3D12_RESOURCE_FLAG_NONE);
         Upload(TextVB, TextVertices, TextVertSize);
     }
-    free(TextVertices);
     
-    // record rendering commands
-    {
-        int TargetWidth = int(RenderTarget.Handle->GetDesc().Width);
-        int TargetHeight = RenderTarget.Handle->GetDesc().Height;
-        
-        D3D12_VIEWPORT Viewport = {};
-        Viewport.Width = f32(TargetWidth);
-        Viewport.Height = f32(TargetHeight);
-        Viewport.MinDepth = 0.0f;
-        Viewport.MaxDepth = 1.0f;
-        D3D12_RECT ScissorRect = {};
-        ScissorRect.right = LONG(TargetWidth);
-        ScissorRect.bottom = LONG(TargetHeight);
-        
-        ID3D12GraphicsCommandList *CmdList = Context->CmdList;
-        CmdList->SetPipelineState(RasterizeTextPSO.Handle);
-        CmdList->SetGraphicsRootSignature(RasterizeTextPSO.RootSignature);
-        CmdList->RSSetViewports(1, &Viewport);
-        CmdList->RSSetScissorRects(1, &ScissorRect);
-        
-        CmdList->SetGraphicsRootDescriptorTable(0, FontAtlas.SRV.GPUHandle);
-        CmdList->OMSetRenderTargets(1, &RenderTarget.RTV.CPUHandle, 0, 0);
-        D3D12_VERTEX_BUFFER_VIEW VBView = {};
-        VBView.BufferLocation = TextVB->GetGPUVirtualAddress();
-        VBView.SizeInBytes = UINT(TextVertSize);
-        VBView.StrideInBytes = sizeof(ui_vertex);
-        CmdList->IASetVertexBuffers(0, 1, &VBView);
-        CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        CmdList->DrawInstanced(TextVertCount, 1, 0, 0);
-    }
+    free(TextVertices);
+}
+
+void
+ui_system::DrawMessage(gpu_context *Context, texture RenderTarget)
+{
+    if (TextVertCount == 0) return;
+    
+    size_t TextVertSize = TextVertCount * sizeof(ui_vertex);
+    
+    int TargetWidth = int(RenderTarget.Handle->GetDesc().Width);
+    int TargetHeight = RenderTarget.Handle->GetDesc().Height;
+    
+    D3D12_VIEWPORT Viewport = {};
+    Viewport.Width = f32(TargetWidth);
+    Viewport.Height = f32(TargetHeight);
+    Viewport.MinDepth = 0.0f;
+    Viewport.MaxDepth = 1.0f;
+    D3D12_RECT ScissorRect = {};
+    ScissorRect.right = LONG(TargetWidth);
+    ScissorRect.bottom = LONG(TargetHeight);
+    
+    ID3D12GraphicsCommandList *CmdList = Context->CmdList;
+    CmdList->SetPipelineState(RasterizeTextPSO.Handle);
+    CmdList->SetGraphicsRootSignature(RasterizeTextPSO.RootSignature);
+    CmdList->RSSetViewports(1, &Viewport);
+    CmdList->RSSetScissorRects(1, &ScissorRect);
+    
+    CmdList->SetGraphicsRootDescriptorTable(0, FontAtlas.SRV.GPUHandle);
+    CmdList->OMSetRenderTargets(1, &RenderTarget.RTV.CPUHandle, 0, 0);
+    D3D12_VERTEX_BUFFER_VIEW VBView = {};
+    VBView.BufferLocation = TextVB->GetGPUVirtualAddress();
+    VBView.SizeInBytes = UINT(TextVertSize);
+    VBView.StrideInBytes = sizeof(ui_vertex);
+    CmdList->IASetVertexBuffers(0, 1, &VBView);
+    CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    CmdList->DrawInstanced(TextVertCount, 1, 0, 0);
 }

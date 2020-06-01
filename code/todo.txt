@@ -67,11 +67,12 @@
 - UI system []
 -   rasterize ascii font atlas [x]
 -   refactor PSO creation & verification code [x]
--   create graphics PSO creation routine []
--   build PSO for text rasterization []
--   routine for building texture-mapped text blocks []
-
-- graceful error system []
+-   create graphics PSO creation routine [x]
+-   build PSO for text rasterization [x]
+-   routine for building texture-mapped text blocks [x]
+-   system for multi-line error msg display [x]
+-   translucent background for text []
+-   dynamic resolution []
 
 - finish tunnel []
 

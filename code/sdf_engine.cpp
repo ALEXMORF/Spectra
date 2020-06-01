@@ -118,6 +118,31 @@ engine::InitOrResizeWindowDependentResources()
                              &DescriptorArena);
 }
 
+internal b32
+VerifyComputeShader(char *Filename, char *EntryPoint, ID3DBlob **ErrorBlob_Out)
+{
+    file File = ReadTextFile(Filename);
+    if (!File.Data)
+    {
+        Win32MessageBox("Shader Load Failure", MB_OK|MB_ICONERROR, 
+                        "Failed to load shader %s", Filename);
+        return false;
+    }
+    
+    b32 HasError = 0;
+    ID3DBlob *Blob = CompileShader(File, Filename, EntryPoint, "cs_5_1", &HasError);
+    free(File.Data);
+    
+    if (HasError)
+    {
+        *ErrorBlob_Out = Blob;
+        return false;
+    }
+    
+    Blob->Release();
+    return true;
+}
+
 void
 engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
                         input *Input, b32 NeedsReload, f32 dT)
@@ -188,6 +213,8 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
             HaltonSequence[I].Y = RadicalInverse(I+1, 3);
         }
         
+        UISystem.SetErrorMessage(&Context, "Hello world.\nHere's a new line!");
+        
         IsInitialized = true;
     }
     Time += dT;
@@ -229,9 +256,20 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         ID3D12Device *D = Context.Device;
         
         b32 ShadersAreValid = true;
-        if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/primary.hlsl", "main");
-        if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/pathtrace.hlsl", "main");
-        if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/apply_primary_shading.hlsl", "main");
+        ID3DBlob *ErrorBlob = 0;
+        if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/primary.hlsl", "main", &ErrorBlob);
+        if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/pathtrace.hlsl", "main", &ErrorBlob);
+        if (ShadersAreValid) ShadersAreValid = VerifyComputeShader("../code/apply_primary_shading.hlsl", "main", &ErrorBlob);
+        
+        if (ErrorBlob)
+        {
+            UISystem.SetErrorMessage(&Context, (char *)ErrorBlob->GetBufferPointer());
+            ErrorBlob->Release();
+        }
+        else
+        {
+            UISystem.SetErrorMessage(&Context, "");
+        }
         
         if (ShadersAreValid)
         {
@@ -583,7 +621,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
     Context.TransitionBarrier(BackBufferTex, D3D12_RESOURCE_STATE_RENDER_TARGET);
     Context.FlushBarriers();
     
-    UISystem.DrawString(&Context, *BackBufferTex, V2(0.0f, 0.0f), "Hello World");
+    UISystem.DrawMessage(&Context, *BackBufferTex);
     
     Context.TransitionBarrier(BackBufferTex, D3D12_RESOURCE_STATE_PRESENT);
     Context.FlushBarriers();

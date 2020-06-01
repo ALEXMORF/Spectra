@@ -405,33 +405,6 @@ CompileShader(file File, char *Filename, char *EntryPoint, char *Target,
     return Failed? ErrorBlob: CodeBlob;
 }
 
-internal b32
-VerifyComputeShader(char *Filename, char *EntryPoint)
-{
-    file File = ReadTextFile(Filename);
-    if (!File.Data)
-    {
-        Win32MessageBox("Shader Load Failure", MB_OK|MB_ICONERROR, 
-                        "Failed to load shader %s", Filename);
-        return false;
-    }
-    
-    b32 HasError = 0;
-    ID3DBlob *Blob = CompileShader(File, Filename, EntryPoint, "cs_5_1", &HasError);
-    free(File.Data);
-    
-    if (HasError)
-    {
-        char *ErrorMsg = (char *)Blob->GetBufferPointer();
-        Win32MessageBox("Shader Compile Error", MB_OK|MB_ICONERROR, "%s", ErrorMsg);
-        Blob->Release();
-        return false;
-    }
-    
-    Blob->Release();
-    return true;
-}
-
 internal ID3D12RootSignature *
 ReflectRootSignature(ID3D12Device *D, ID3DBlob *CodeBlob, 
                      ID3DBlob **RSErrorBlob_Out)

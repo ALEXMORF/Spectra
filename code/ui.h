@@ -29,7 +29,8 @@ struct ui_system
     pso RasterizeTextPSO;
     
     ID3D12Resource *TextVB;
+    int TextVertCount;
     
-    void DrawString(gpu_context *Context, texture RenderTarget,
-                    v2 Offset, char *String);
+    void SetErrorMessage(gpu_context *Context, char *String);
+    void DrawMessage(gpu_context *Context, texture RenderTarget);
 };
