@@ -40,6 +40,7 @@ struct texture
     
     descriptor UAV;
     descriptor SRV;
+    descriptor RTV;
 };
 
 struct frame_context
@@ -288,7 +289,14 @@ InitDescriptorArena(ID3D12Device *D, int Count,
     D3D12_DESCRIPTOR_HEAP_DESC HeapDesc = {};
     HeapDesc.Type = HeapType;
     HeapDesc.NumDescriptors = Count;
-    HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    if (HeapType == D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV)
+    {
+        HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+    }
+    else
+    {
+        HeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+    }
     DXOP(D->CreateDescriptorHeap(&HeapDesc, IID_PPV_ARGS(&Arena.Heap)));
     
     return Arena;
@@ -497,9 +505,12 @@ InitComputePSO(ID3D12Device *D, char *Filename, char *EntryPoint)
     return PSO;
 }
 
+typedef void edit_graphics_pso(D3D12_GRAPHICS_PIPELINE_STATE_DESC *PSODesc);
+
 internal pso
 InitGraphicsPSO(ID3D12Device *D, char *Filename, 
-                D3D12_INPUT_ELEMENT_DESC *InputElements, int InputElementCount)
+                D3D12_INPUT_ELEMENT_DESC *InputElements, int InputElementCount,
+                edit_graphics_pso *EditGraphicsPSO = 0)
 {
     pso PSO = {};
     
@@ -561,6 +572,11 @@ InitGraphicsPSO(ID3D12Device *D, char *Filename,
     PSODesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
     PSODesc.SampleDesc.Count = 1; // one sample per pixel
     PSODesc.Flags = D3D12_PIPELINE_STATE_FLAG_NONE;
+    if (EditGraphicsPSO)
+    {
+        EditGraphicsPSO(&PSODesc);
+    }
+    
     DXOP(D->CreateGraphicsPipelineState(&PSODesc, IID_PPV_ARGS(&PSO.Handle)));
     
     VSBlob->Release();
@@ -612,6 +628,17 @@ InitBuffer(ID3D12Device *D, size_t ByteCount,
                                     IID_PPV_ARGS(&Buffer)));
     
     return Buffer;
+}
+
+internal void
+Upload(ID3D12Resource *Buffer, void *Data, size_t ByteCount)
+{
+    D3D12_RANGE ReadRange = {};
+    void *MappedAddr = 0;
+    DXOP(Buffer->Map(0, &ReadRange, &MappedAddr));
+    memcpy(MappedAddr, Data, ByteCount);
+    D3D12_RANGE WriteRange = {0, ByteCount};
+    Buffer->Unmap(0, &WriteRange);
 }
 
 //
@@ -736,14 +763,7 @@ void gpu_context::Upload(texture *Tex, void *TexData)
                                                D3D12_HEAP_TYPE_UPLOAD,
                                                D3D12_RESOURCE_STATE_GENERIC_READ,
                                                D3D12_RESOURCE_FLAG_NONE);
-    D3D12_RANGE ReadRange = {};
-    void *MappedAddr = 0;
-    DXOP(StagingBuffer->Map(0, &ReadRange, &MappedAddr));
-    
-    memcpy(MappedAddr, PaddedTexData, PaddedTexDataSize);
-    
-    D3D12_RANGE WriteRange = {0, PaddedTexDataSize};
-    StagingBuffer->Unmap(0, &WriteRange);
+    ::Upload(StagingBuffer, PaddedTexData, PaddedTexDataSize);
     
     Reset(0);
     
@@ -804,4 +824,11 @@ AssignSRV(ID3D12Device *D, texture *Tex, descriptor_arena *Arena)
 {
     Tex->SRV = Arena->PushDescriptor();
     D->CreateShaderResourceView(Tex->Handle, 0, Tex->SRV.CPUHandle);
+}
+
+internal void
+AssignRTV(ID3D12Device *D, texture *Tex, descriptor_arena *Arena)
+{
+    Tex->RTV = Arena->PushDescriptor();
+    D->CreateRenderTargetView(Tex->Handle, 0, Tex->RTV.CPUHandle);
 }

@@ -42,6 +42,7 @@ struct engine
     
     ui_system UISystem;
     
+    descriptor_arena RTVArena;
     descriptor_arena DescriptorArena;
     
     pso PrimaryPSO;

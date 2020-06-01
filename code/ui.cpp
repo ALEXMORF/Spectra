@@ -22,7 +22,7 @@ InitUISystem(gpu_context *Context, descriptor_arena *DescriptorArena)
     
     int BeginCharI = 32;
     int EndCharI = 126;
-    int FontHeight = 20;
+    int FontHeight = 50;
     
     f32 Scale = stbtt_ScaleForPixelHeight(&FontInfo, f32(FontHeight));
     int Ascent, Descent, LineGap;
@@ -74,22 +74,125 @@ InitUISystem(gpu_context *Context, descriptor_arena *DescriptorArena)
     System.CharYCount = CharYCount;
     System.FontWidth = FontWidth;
     System.FontHeight = FontHeight;
+    System.AtlasWidth = AtlasWidth;
+    System.AtlasHeight = AtlasHeight;
     System.FontAtlas = InitTexture2D(Context->Device, 
                                      AtlasWidth, AtlasHeight,
                                      DXGI_FORMAT_R8_UNORM, D3D12_RESOURCE_FLAG_NONE,
                                      D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     Context->Upload(&System.FontAtlas, AtlasData);
+    AssignSRV(Context->Device, &System.FontAtlas, DescriptorArena);
     free(AtlasData);
     
     D3D12_INPUT_ELEMENT_DESC TextVertInputElements[] = {
-        {"POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
     
+    auto Edit = [](D3D12_GRAPHICS_PIPELINE_STATE_DESC *PSODesc) {
+        PSODesc->DepthStencilState.DepthEnable = false;
+        PSODesc->RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+        
+        D3D12_RENDER_TARGET_BLEND_DESC *RTBlendDesc = PSODesc->BlendState.RenderTarget;
+        RTBlendDesc->BlendEnable = TRUE;
+        RTBlendDesc->SrcBlend = D3D12_BLEND_SRC_ALPHA;
+        RTBlendDesc->DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+        RTBlendDesc->BlendOp = D3D12_BLEND_OP_ADD;
+        RTBlendDesc->SrcBlendAlpha = D3D12_BLEND_SRC_ALPHA;
+        RTBlendDesc->DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+        RTBlendDesc->BlendOpAlpha = D3D12_BLEND_OP_ADD;
+    };
     System.RasterizeTextPSO = InitGraphicsPSO(Context->Device, 
                                               "../code/rasterize_text.hlsl", 
                                               TextVertInputElements,
-                                              ARRAY_COUNT(TextVertInputElements));
+                                              ARRAY_COUNT(TextVertInputElements),
+                                              Edit);
     
     return System;
+}
+
+void
+ui_system::DrawString(gpu_context *Context, texture RenderTarget,
+                      v2 Offset, char *String)
+{
+    int StringLen = int(strlen(String));
+    
+    int TextVertCount = 6 * StringLen;
+    size_t TextVertSize = TextVertCount * sizeof(ui_vertex);
+    ui_vertex *TextVertices = (ui_vertex *)calloc(TextVertCount, sizeof(ui_vertex));
+    
+    v2 FontDim = V2(f32(FontWidth)/1280.0f, f32(FontHeight)/720.0f);
+    
+    // build verts
+    int Cursor = 0;
+    for (int CharI = 0; CharI < StringLen; ++CharI)
+    {
+        int Code = String[CharI];
+        
+        int Index = Code - BeginCharI;
+        
+        int CodePointX = (Index % CharXCount) * FontWidth;
+        int CodePointY = (Index / CharXCount) * FontHeight;
+        
+        f32 U = f32(CodePointX) / f32(AtlasWidth);
+        f32 V = f32(CodePointY) / f32(AtlasHeight);
+        f32 UVWidth = f32(FontWidth) / f32(AtlasWidth);
+        f32 UVHeight = f32(FontHeight) / f32(AtlasHeight);
+        
+        v2 TopLeftP = Offset;
+        v2 BotRightP = TopLeftP + V2(FontDim.X, -FontDim.Y);
+        
+        v2 TopLeftUV = V2(U, V);
+        v2 BotRightUV = TopLeftUV + V2(UVWidth, UVHeight);
+        
+        TextVertices[Cursor++] = {TopLeftP, TopLeftUV};
+        TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightUV.X, TopLeftUV.Y)};
+        TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftUV.X, BotRightUV.Y)};
+        TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftUV.X, BotRightUV.Y)};
+        TextVertices[Cursor++] = {BotRightP, BotRightUV};
+        TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightUV.X, TopLeftUV.Y)};
+        
+        Offset.X += FontDim.X;
+    }
+    
+    // upload verts
+    if (!TextVB)
+    {
+        TextVB = InitBuffer(Context->Device, TextVertSize,
+                            D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ,
+                            D3D12_RESOURCE_FLAG_NONE);
+        Upload(TextVB, TextVertices, TextVertSize);
+    }
+    free(TextVertices);
+    
+    // record rendering commands
+    {
+        int TargetWidth = int(RenderTarget.Handle->GetDesc().Width);
+        int TargetHeight = RenderTarget.Handle->GetDesc().Height;
+        
+        D3D12_VIEWPORT Viewport = {};
+        Viewport.Width = f32(TargetWidth);
+        Viewport.Height = f32(TargetHeight);
+        Viewport.MinDepth = 0.0f;
+        Viewport.MaxDepth = 1.0f;
+        D3D12_RECT ScissorRect = {};
+        ScissorRect.right = LONG(TargetWidth);
+        ScissorRect.bottom = LONG(TargetHeight);
+        
+        ID3D12GraphicsCommandList *CmdList = Context->CmdList;
+        CmdList->SetPipelineState(RasterizeTextPSO.Handle);
+        CmdList->SetGraphicsRootSignature(RasterizeTextPSO.RootSignature);
+        CmdList->RSSetViewports(1, &Viewport);
+        CmdList->RSSetScissorRects(1, &ScissorRect);
+        
+        CmdList->SetGraphicsRootDescriptorTable(0, FontAtlas.SRV.GPUHandle);
+        CmdList->OMSetRenderTargets(1, &RenderTarget.RTV.CPUHandle, 0, 0);
+        D3D12_VERTEX_BUFFER_VIEW VBView = {};
+        VBView.BufferLocation = TextVB->GetGPUVirtualAddress();
+        VBView.SizeInBytes = UINT(TextVertSize);
+        VBView.StrideInBytes = sizeof(ui_vertex);
+        CmdList->IASetVertexBuffers(0, 1, &VBView);
+        CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        CmdList->DrawInstanced(TextVertCount, 1, 0, 0);
+    }
 }

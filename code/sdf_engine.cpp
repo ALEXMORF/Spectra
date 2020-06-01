@@ -13,7 +13,6 @@ void InitOrResizeUAVTexture2D(ID3D12Device *D, texture *Tex,
                              D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
                              D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
         AssignUAV(D, Tex, Arena);
-        
     }
     else
     {
@@ -141,14 +140,16 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         Width = ClientWidth;
         Height = ClientHeight;
         
+        DescriptorArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+        RTVArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        
         for (int I = 0; I < BACKBUFFER_COUNT; ++I)
         {
             ID3D12Resource *BackBuffer = 0;
             SwapChain->GetBuffer(I, IID_PPV_ARGS(&BackBuffer));
             BackBufferTexs[I] = WrapTexture(BackBuffer, D3D12_RESOURCE_STATE_PRESENT);
+            AssignRTV(D, &BackBufferTexs[I], &RTVArena);
         }
-        
-        DescriptorArena = InitDescriptorArena(D, 100, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
         
         UISystem = InitUISystem(&Context, &DescriptorArena);
         
@@ -212,7 +213,12 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         {
             ID3D12Resource *BackBuffer = 0;
             SwapChain->GetBuffer(BI, IID_PPV_ARGS(&BackBuffer));
+            
+            descriptor PrevRTV = BackBufferTexs[BI].RTV;
             BackBufferTexs[BI] = WrapTexture(BackBuffer, D3D12_RESOURCE_STATE_PRESENT);
+            BackBufferTexs[BI].RTV = PrevRTV;
+            Context.Device->CreateRenderTargetView(BackBufferTexs[BI].Handle, 
+                                                   0, BackBufferTexs[BI].RTV.CPUHandle);
         }
     }
     
@@ -573,6 +579,14 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
     UINT BackBufferIndex = SwapChain->GetCurrentBackBufferIndex();
     texture *BackBufferTex = BackBufferTexs + BackBufferIndex;
     Context.CopyResourceBarriered(BackBufferTex, &OutputTex);
+    
+    Context.TransitionBarrier(BackBufferTex, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    Context.FlushBarriers();
+    
+    UISystem.DrawString(&Context, *BackBufferTex, V2(0.0f, 0.0f), "Hello World");
+    
+    Context.TransitionBarrier(BackBufferTex, D3D12_RESOURCE_STATE_PRESENT);
+    Context.FlushBarriers();
     
     DXOP(CmdList->Close());
     

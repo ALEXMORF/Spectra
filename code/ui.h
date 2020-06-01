@@ -6,9 +6,19 @@
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb_image_write.h"
 
+#pragma pack(push, 1)
+struct ui_vertex
+{
+    v2 P;
+    v2 UV;
+};
+#pragma pack(pop)
+
 struct ui_system
 {
     texture FontAtlas;
+    int AtlasWidth;
+    int AtlasHeight;
     int BeginCharI;
     int EndCharI;
     int CharXCount;
@@ -17,4 +27,9 @@ struct ui_system
     int FontHeight;
     
     pso RasterizeTextPSO;
+    
+    ID3D12Resource *TextVB;
+    
+    void DrawString(gpu_context *Context, texture RenderTarget,
+                    v2 Offset, char *String);
 };

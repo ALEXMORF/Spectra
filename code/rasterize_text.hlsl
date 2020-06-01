@@ -1,4 +1,7 @@
-#define RS "RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT)"
+#define RS "RootFlags(ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT), DescriptorTable(SRV(t0)), StaticSampler(s0, filter=FILTER_MIN_MAG_MIP_LINEAR)"
+
+Texture2D<float> FontAtlasTex: register(t0);
+SamplerState LinearSampler: register(s0);
 
 struct vs_in
 {
@@ -25,5 +28,7 @@ vs_out VS(vs_in In)
 
 float4 PS(vs_out In): SV_Target
 {
-    return 1.0;
+    float2 ST = In.UV;
+    float Alpha = FontAtlasTex.Sample(LinearSampler, ST);
+    return float4(1.0, 1.0, 1.0, Alpha);
 }
