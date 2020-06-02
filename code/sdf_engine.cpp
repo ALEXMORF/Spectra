@@ -224,6 +224,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         Width = ClientWidth;
         Height = ClientHeight;
         
+        UISystem.BuildUIVB(&Context, Width, Height);
         InitOrResizeWindowDependentResources();
         
         for (int BI = 0; BI < BACKBUFFER_COUNT; ++BI)
@@ -261,12 +262,14 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         
         if (ErrorBlob)
         {
-            UISystem.SetErrorMessage(&Context, (char *)ErrorBlob->GetBufferPointer());
+            UISystem.SetErrorMessage((char *)ErrorBlob->GetBufferPointer());
             ErrorBlob->Release();
+            UISystem.BuildUIVB(&Context, Width, Height);
         }
         else
         {
-            UISystem.SetErrorMessage(&Context, "");
+            UISystem.SetErrorMessage("");
+            UISystem.BuildUIVB(&Context, Width, Height);
         }
         
         if (ShadersAreValid)

@@ -64,7 +64,7 @@
 
 - user-defined fog function [x]
 
-- UI system []
+- UI system [x]
 -   rasterize ascii font atlas [x]
 -   refactor PSO creation & verification code [x]
 -   create graphics PSO creation routine [x]
@@ -72,7 +72,7 @@
 -   routine for building texture-mapped text blocks [x]
 -   system for multi-line error msg display [x]
 -   translucent background for text [x]
--   dynamic resolution []
+-   dynamic resolution [x]
 
 - finish tunnel []
 

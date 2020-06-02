@@ -112,11 +112,21 @@ InitUISystem(gpu_context *Context, descriptor_arena *DescriptorArena)
     return System;
 }
 
-void 
-ui_system::SetErrorMessage(gpu_context *Context, char *String)
+void
+ui_system::SetErrorMessage(char *String)
 {
-    int StringLen = int(strlen(String));
-    if (StringLen == 0)
+    if (Message)
+    {
+        free(Message);
+    }
+    Message = strdup(String);
+}
+
+void 
+ui_system::BuildUIVB(gpu_context *Context, int Width, int Height)
+{
+    int MessageLen = int(strlen(Message));
+    if (MessageLen == 0)
     {
         UIVertCount = 0;
         if (UIVB)
@@ -130,18 +140,18 @@ ui_system::SetErrorMessage(gpu_context *Context, char *String)
     }
     
     int LineCount = 1;
-    for (int I = 0; I < StringLen; ++I)
+    for (int I = 0; I < MessageLen; ++I)
     {
-        if (String[I] == '\n')  
+        if (Message[I] == '\n')  
         {
             LineCount += 1;
         }
     }
     
-    v2 FontDim = V2(f32(FontWidth)/1280.0f, f32(FontHeight)/720.0f);
+    v2 FontDim = V2(f32(FontWidth)/f32(Width), f32(FontHeight)/f32(Height));
     v2 Offset = {-1.0f, -1.0f + f32(LineCount)*FontDim.Y};
     
-    UIVertCount = 6 + 6 * StringLen;
+    UIVertCount = 6 + 6 * MessageLen;
     ui_vertex *TextVertices = (ui_vertex *)calloc(UIVertCount, sizeof(ui_vertex));
     
     // build verts
@@ -161,9 +171,9 @@ ui_system::SetErrorMessage(gpu_context *Context, char *String)
     }
     
     // build text verts
-    for (int CharI = 0; CharI < StringLen; ++CharI)
+    for (int CharI = 0; CharI < MessageLen; ++CharI)
     {
-        int Code = String[CharI];
+        int Code = Message[CharI];
         
         if (Code >= BeginCharI && Code <= EndCharI)
         {
@@ -211,7 +221,7 @@ ui_system::SetErrorMessage(gpu_context *Context, char *String)
         UIVB = 0;
     }
     
-    if (StringLen > 0)
+    if (MessageLen > 0)
     {
         size_t UIVertSize = UIVertCount * sizeof(ui_vertex);
         UIVB = InitBuffer(Context->Device, UIVertSize,

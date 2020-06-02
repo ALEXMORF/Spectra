@@ -29,9 +29,12 @@ struct ui_system
     
     pso RasterizeTextPSO;
     
+    char *Message;
     ID3D12Resource *UIVB;
     int UIVertCount;
     
-    void SetErrorMessage(gpu_context *Context, char *String);
+    void SetErrorMessage(char *String);
+    void BuildUIVB(gpu_context *Context, int Width, int Height);
+    
     void DrawMessage(gpu_context *Context, texture RenderTarget);
 };
