@@ -11,6 +11,7 @@ struct ui_vertex
 {
     v2 P;
     v2 UV;
+    int Type;
 };
 #pragma pack(pop)
 
@@ -28,8 +29,8 @@ struct ui_system
     
     pso RasterizeTextPSO;
     
-    ID3D12Resource *TextVB;
-    int TextVertCount;
+    ID3D12Resource *UIVB;
+    int UIVertCount;
     
     void SetErrorMessage(gpu_context *Context, char *String);
     void DrawMessage(gpu_context *Context, texture RenderTarget);

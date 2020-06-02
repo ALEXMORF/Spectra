@@ -78,7 +78,7 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
             FilteredHist /= TotalContrib;
             LumMomentHist /= TotalContrib;
             
-            float Alpha = 0.03;
+            float Alpha = 0.1;
             
             float3 FilteredCol = lerp(FilteredHist.rgb, InputTex[ThreadId].rgb, Alpha);
             

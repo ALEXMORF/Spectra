@@ -71,7 +71,7 @@
 -   build PSO for text rasterization [x]
 -   routine for building texture-mapped text blocks [x]
 -   system for multi-line error msg display [x]
--   translucent background for text []
+-   translucent background for text [x]
 -   dynamic resolution []
 
 - finish tunnel []

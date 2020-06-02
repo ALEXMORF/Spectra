@@ -87,6 +87,7 @@ InitUISystem(gpu_context *Context, descriptor_arena *DescriptorArena)
     D3D12_INPUT_ELEMENT_DESC TextVertInputElements[] = {
         {"POS", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
         {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
+        {"TYPE", 0, DXGI_FORMAT_R32G32_SINT, 0, D3D12_APPEND_ALIGNED_ELEMENT, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
     };
     
     auto Edit = [](D3D12_GRAPHICS_PIPELINE_STATE_DESC *PSODesc) {
@@ -115,6 +116,18 @@ void
 ui_system::SetErrorMessage(gpu_context *Context, char *String)
 {
     int StringLen = int(strlen(String));
+    if (StringLen == 0)
+    {
+        UIVertCount = 0;
+        if (UIVB)
+        {
+            Context->FlushFramesInFlight();
+            UIVB->Release();
+            UIVB = 0;
+        }
+        
+        return;
+    }
     
     int LineCount = 1;
     for (int I = 0; I < StringLen; ++I)
@@ -128,11 +141,26 @@ ui_system::SetErrorMessage(gpu_context *Context, char *String)
     v2 FontDim = V2(f32(FontWidth)/1280.0f, f32(FontHeight)/720.0f);
     v2 Offset = {-1.0f, -1.0f + f32(LineCount)*FontDim.Y};
     
-    TextVertCount = 6 * StringLen;
-    ui_vertex *TextVertices = (ui_vertex *)calloc(TextVertCount, sizeof(ui_vertex));
+    UIVertCount = 6 + 6 * StringLen;
+    ui_vertex *TextVertices = (ui_vertex *)calloc(UIVertCount, sizeof(ui_vertex));
     
     // build verts
     int Cursor = 0;
+    
+    // build background verts
+    {
+        v2 TopLeftP = Offset + V2(0.0f, FontDim.Y);
+        v2 BotRightP = Offset + V2(2.0f, (f32(LineCount)) * -FontDim.Y);
+        
+        TextVertices[Cursor++] = {TopLeftP, TopLeftP, 1};
+        TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightP.X, TopLeftP.Y), 1};
+        TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftP.X, BotRightP.Y), 1};
+        TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftP.X, BotRightP.Y), 1};
+        TextVertices[Cursor++] = {BotRightP, BotRightP, 1};
+        TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightP.X, TopLeftP.Y), 1};
+    }
+    
+    // build text verts
     for (int CharI = 0; CharI < StringLen; ++CharI)
     {
         int Code = String[CharI];
@@ -155,12 +183,12 @@ ui_system::SetErrorMessage(gpu_context *Context, char *String)
             v2 TopLeftUV = V2(U, V);
             v2 BotRightUV = TopLeftUV + V2(UVWidth, UVHeight);
             
-            TextVertices[Cursor++] = {TopLeftP, TopLeftUV};
-            TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightUV.X, TopLeftUV.Y)};
-            TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftUV.X, BotRightUV.Y)};
-            TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftUV.X, BotRightUV.Y)};
-            TextVertices[Cursor++] = {BotRightP, BotRightUV};
-            TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightUV.X, TopLeftUV.Y)};
+            TextVertices[Cursor++] = {TopLeftP, TopLeftUV, 0};
+            TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightUV.X, TopLeftUV.Y), 0};
+            TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftUV.X, BotRightUV.Y), 0};
+            TextVertices[Cursor++] = {V2(TopLeftP.X, BotRightP.Y), V2(TopLeftUV.X, BotRightUV.Y), 0};
+            TextVertices[Cursor++] = {BotRightP, BotRightUV, 0};
+            TextVertices[Cursor++] = {V2(BotRightP.X, TopLeftP.Y), V2(BotRightUV.X, TopLeftUV.Y), 0};
             
             Offset.X += FontDim.X;
         }
@@ -176,20 +204,20 @@ ui_system::SetErrorMessage(gpu_context *Context, char *String)
     }
     
     // upload verts
-    if (TextVB)
+    if (UIVB)
     {
         Context->FlushFramesInFlight();
-        TextVB->Release();
-        TextVB = 0;
+        UIVB->Release();
+        UIVB = 0;
     }
     
     if (StringLen > 0)
     {
-        size_t TextVertSize = TextVertCount * sizeof(ui_vertex);
-        TextVB = InitBuffer(Context->Device, TextVertSize,
-                            D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ,
-                            D3D12_RESOURCE_FLAG_NONE);
-        Upload(TextVB, TextVertices, TextVertSize);
+        size_t UIVertSize = UIVertCount * sizeof(ui_vertex);
+        UIVB = InitBuffer(Context->Device, UIVertSize,
+                          D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ,
+                          D3D12_RESOURCE_FLAG_NONE);
+        Upload(UIVB, TextVertices, UIVertSize);
     }
     
     free(TextVertices);
@@ -198,9 +226,9 @@ ui_system::SetErrorMessage(gpu_context *Context, char *String)
 void
 ui_system::DrawMessage(gpu_context *Context, texture RenderTarget)
 {
-    if (TextVertCount == 0) return;
+    if (UIVertCount == 0) return;
     
-    size_t TextVertSize = TextVertCount * sizeof(ui_vertex);
+    size_t UIVertSize = UIVertCount * sizeof(ui_vertex);
     
     int TargetWidth = int(RenderTarget.Handle->GetDesc().Width);
     int TargetHeight = RenderTarget.Handle->GetDesc().Height;
@@ -223,10 +251,10 @@ ui_system::DrawMessage(gpu_context *Context, texture RenderTarget)
     CmdList->SetGraphicsRootDescriptorTable(0, FontAtlas.SRV.GPUHandle);
     CmdList->OMSetRenderTargets(1, &RenderTarget.RTV.CPUHandle, 0, 0);
     D3D12_VERTEX_BUFFER_VIEW VBView = {};
-    VBView.BufferLocation = TextVB->GetGPUVirtualAddress();
-    VBView.SizeInBytes = UINT(TextVertSize);
+    VBView.BufferLocation = UIVB->GetGPUVirtualAddress();
+    VBView.SizeInBytes = UINT(UIVertSize);
     VBView.StrideInBytes = sizeof(ui_vertex);
     CmdList->IASetVertexBuffers(0, 1, &VBView);
     CmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    CmdList->DrawInstanced(TextVertCount, 1, 0, 0);
+    CmdList->DrawInstanced(UIVertCount, 1, 0, 0);
 }
