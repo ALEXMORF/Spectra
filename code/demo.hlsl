@@ -8,7 +8,7 @@ point_query Map(float3 P, float Time)
     
     float Floor = P.y + 1.0;
     float Sphere = length(P) - 1.0;
-    float Sphere2 = length(P - float3(2, 0, 0)) - 1.0;
+    float Sphere2 = length(P - float3(0, 3, 2)) - 1.0;
     
     BIND(Floor, 0);
     BIND(Sphere, 1);
@@ -33,10 +33,26 @@ material MapMaterial(int MatId, float3 P, float Time)
 
 float3 Env(float3 Rd, float Time)
 {
-    return 1.0 * float3(0.3, 0.4, 0.5);
+    float3 Sky = 0.1 * float3(0.3, 0.4, 0.5);
+    return Sky;
 }
 
 float Fog(float Depth)
 {
     return 1.0;
+}
+
+float3 SunDir()
+{
+    return normalize(float3(0.2, 0.3, 0.1));
+}
+
+float3 SunLight()
+{
+    return 1.0;
+}
+
+float SunAperture()
+{
+    return 0.1;
 }

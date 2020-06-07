@@ -87,7 +87,20 @@ point_query Map(float3 P, float Time)
     
     float Floor = P.y + 1.0;
     float Sphere = length(P) - 1.0;
+    
     float Tunnel = -(length(P.xy) - 5.0);
+    if (Tunnel < 0.2)
+    {
+        float U = frac(P.z);
+        float V = frac(10.0*atan2(P.y, P.x));
+        float UMod = smoothstep(0.0, 0.2, U) * smoothstep(0.8, 1.0, U);
+        float VMod = smoothstep(0.0, 0.2, V) * smoothstep(0.8, 1.0, V);
+        Tunnel += 0.1 * (UMod + VMod);
+    }
+    Tunnel = abs(Tunnel) - 0.1;
+    float Freq = 8.0;
+    float Neg = length(P - float3(-5, 2, 0)) - 3.0 + 0.1*sin(Freq*P.x)*sin(Freq*P.y)*sin(Freq*P.z);
+    Tunnel = max(Tunnel, -Neg);
     
     BIND(Floor, 0);
     BIND(Sphere, 1);
@@ -120,7 +133,6 @@ material MapMaterial(int MatId, float3 P, float Time)
     else if (MatId == 2) // tunnel
     {
         Mat.Albedo = float3(0.7, 0.4, 0.3);
-        if (abs(P.y) < 0.2) Mat.Emission = 5;
     }
     
     return Mat;
@@ -133,5 +145,20 @@ float3 Env(float3 Rd, float Time)
 
 float Fog(float Depth)
 {
-    return clamp(1.0 - Depth / 100.0, 0, 1);
+    return pow(clamp(1.0 - Depth / 80.0, 0, 1), 0.5);
+}
+
+float3 SunDir()
+{
+    return normalize(float3(-0.2, 0.3, 0.1));
+}
+
+float3 SunLight()
+{
+    return float3(3.0, 3.0, 3.0);
+}
+
+float SunAperture()
+{
+    return 0.1;
 }

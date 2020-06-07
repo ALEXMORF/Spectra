@@ -1,2 +1,6 @@
 #define T_MAX 1000.0
 #define Pi 3.1415926
+#define T_EPSILON 0.01
+#define MAX_RAYMARCH_ITER 256
+
+#define RAYMARCH_RELAXATION 1.6

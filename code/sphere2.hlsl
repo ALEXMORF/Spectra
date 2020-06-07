@@ -48,3 +48,18 @@ float Fog(float Depth)
 {
     return 1.0;
 }
+
+float3 SunDir()
+{
+    return normalize(float3(-0.2, 0.3, 0.1));
+}
+
+float3 SunLight()
+{
+    return 0;
+}
+
+float SunAperture()
+{
+    return 0.1;
+}

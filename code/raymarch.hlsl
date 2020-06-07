@@ -19,17 +19,35 @@ float3 CalcGradient(float3 P, float Time)
 hit RayMarch(float3 Ro, float3 Rd, float Time)
 {
     int MatId = -1;
+    
+    bool IsRelaxed = true;
+    float PrevDist = 0;
+    float PrevStep = 0;
     float T = 0.0;
     int Iter = 0;
-    for (Iter = 0; Iter < 512 && T < T_MAX; ++Iter)
+    for (Iter = 0; Iter < MAX_RAYMARCH_ITER && T < T_MAX; ++Iter)
     {
         point_query Q = Map(Ro + T*Rd, Time);
-        if (Q.Dist < 0.001)
+        
+        if (IsRelaxed && abs(Q.Dist) + abs(PrevDist) <= PrevStep) // doesn't intersect
+        {
+            IsRelaxed = false;
+            T -= PrevStep;
+            Q = Map(Ro + T*Rd, Time);
+        }
+        
+        if (Q.Dist < T_EPSILON)
         {
             MatId = Q.MatId;
             break;
         }
-        T += Q.Dist;
+        
+        float Scale = IsRelaxed? RAYMARCH_RELAXATION: 1.0;
+        float Step = Scale * Q.Dist;
+        T += Step;
+        
+        PrevDist = Q.Dist;
+        PrevStep = Step;
     }
     
     hit Hit;

@@ -125,7 +125,7 @@ ui_system::SetErrorMessage(char *String)
 void 
 ui_system::BuildUIVB(gpu_context *Context, int Width, int Height)
 {
-    int MessageLen = int(strlen(Message));
+    int MessageLen = Message? int(strlen(Message)): 0;
     if (MessageLen == 0)
     {
         UIVertCount = 0;

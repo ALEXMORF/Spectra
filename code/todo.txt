@@ -74,17 +74,17 @@
 -   translucent background for text [x]
 -   dynamic resolution [x]
 
-- finish tunnel []
+- finish tunnel [x]
 
-- pull out low-level graphics library []
-
-- need perf counters []
+- directional light source support [x]
+- need perf counters [x]
+- wrap up per-frame profiling [x]
 
 - optimizations []
--   enhanced raymarch []
+-   enhanced raymarch [x]
 -   optimized filters []
 
-- directional light source support []
+- pull out low-level graphics library []
 
 - more complex materials []
 -   specular/metallic []

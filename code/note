@@ -1,0 +1,32 @@
+
+PIPELINING:
+
+CPU stalled by GPU (single-buffering)
+
+|CPU|   |CPU|
+    |GPU|   |GPU|
+
+exec time = exec(CPU) + exec(GPU)
+
+CPU/GPU pipelined (double-buffering)
+
+|CPU|CPU|CPU|CPU|CPU|CPU|
+    |GPU|GPU|GPU|GPU|GPU|
+
+exec time = max(exec(CPU), exec(GPU))
+
+RESOURCES:
+
+persistent resource. no problem
+
+per-frame resource, create duplicates for each frame
+
+PERF:
+
+primary rays: 1.58ms
+path tracing: 144.87ms
+temporal filter: 0.5ms
+calc variance: 5.26ms
+spatial filter: 8.76ms
+primary shading: 0.29ms
+TAA: 0.21ms

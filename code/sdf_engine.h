@@ -33,12 +33,45 @@ struct camera
     quaternion Orientation;
 };
 
+struct profile_session
+{
+    char *Name;
+    int BeginIndex;
+    int EndIndex;
+};
+
+struct profile_result
+{
+    char *Name;
+    f32 MilisecondsElapsed;
+};
+
+struct frame_data
+{
+    u64 TimestampFrequency;
+    
+    ID3D12QueryHeap *QueryHeap;
+    int CurrQueryIndex;
+    int QueryCount;
+    ID3D12Resource *CounterBuffer;
+    
+    profile_session Sessions[1000];
+    int CurrSessionIndex;
+    bool IsInSession;
+    
+    void BeginProfile(ID3D12GraphicsCommandList *CmdList, char *Identifer);
+    void EndProfile(ID3D12GraphicsCommandList *CmdList);
+    void ReadbackCounters();
+};
+
 struct engine
 {
     gpu_context Context;
     IDXGISwapChain3 *SwapChain;
     int Width;
     int Height;
+    
+    frame_data FrameData[BACKBUFFER_COUNT];
     
     ui_system UISystem;
     

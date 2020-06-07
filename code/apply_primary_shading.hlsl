@@ -22,6 +22,8 @@ ConstantBuffer<context> Context: register(b0);
 void main(uint2 ThreadId: SV_DispatchThreadID)
 {
     float3 P = PositionTex[ThreadId].xyz;
+    float3 Rd = RayDirTex[ThreadId].xyz;
+    float3 Sky = Env(Rd, Context.Time);
     
     if (length(P) < 10e30)
     {
@@ -33,13 +35,12 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
         float3 Radiance = FirstBrdf*Illumination + Emission;
         
         float Depth = length(Context.CamP - P);
-        Radiance *= Fog(Depth);
+        Radiance = lerp(Sky, Radiance, Fog(Depth));
         
         LightTex[ThreadId] = float4(Radiance, 1.0);
     }
     else
     {
-        float3 Rd = RayDirTex[ThreadId].xyz;
-        LightTex[ThreadId] = float4(Env(Rd, Context.Time), 1.0);
+        LightTex[ThreadId] = float4(Sky, 1.0);
     }
 }

@@ -57,6 +57,9 @@ Also, the source comes with some example scenes I've made in the form of include
 
 Selectively un-comment the scene you want to see. Here are some screenshots of these stock scenes I've prepared:
 
+tunnel.hlsl:
+![tunnel](https://user-images.githubusercontent.com/16845654/83958430-67af8080-a826-11ea-878f-9bf0b429d870.png)
+
 sphere.hlsl:
 ![sphere](https://user-images.githubusercontent.com/16845654/83236798-f5191380-a148-11ea-9e33-20f5d9f79d7c.PNG)
 

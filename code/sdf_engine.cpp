@@ -143,6 +143,69 @@ VerifyComputeShader(char *Filename, char *EntryPoint, ID3DBlob **ErrorBlob_Out)
     return true;
 }
 
+void 
+frame_data::BeginProfile(ID3D12GraphicsCommandList *CmdList, char *Identifer)
+{
+    ASSERT(!IsInSession);
+    IsInSession = true;
+    
+    int Index = CurrQueryIndex++;
+    CmdList->EndQuery(QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, Index);
+    
+    Sessions[CurrSessionIndex].Name = strdup(Identifer);
+    Sessions[CurrSessionIndex].BeginIndex = Index;
+}
+
+void 
+frame_data::EndProfile(ID3D12GraphicsCommandList *CmdList)
+{
+    ASSERT(IsInSession);
+    
+    int Index = CurrQueryIndex++;
+    CmdList->EndQuery(QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, Index);
+    
+    Sessions[CurrSessionIndex].EndIndex = Index;
+    CurrSessionIndex += 1;
+    
+    IsInSession = false;
+}
+
+void 
+frame_data::ReadbackCounters()
+{
+    if (CurrQueryIndex == 0) return;
+    
+    D3D12_RANGE ReadRange = {0, sizeof(u64) * CurrQueryIndex};
+    
+    u64 *Counters = 0;
+    DXOP(CounterBuffer->Map(0, &ReadRange, (void **)&Counters));
+    
+    D3D12_RANGE WriteRange = {};
+    CounterBuffer->Unmap(0, &WriteRange);
+    
+    // record results
+    printf("PROFILE RESULTS ------------------------------\n");
+    for (int SessionI = 0; SessionI < CurrSessionIndex; ++SessionI)
+    {
+        profile_session *Session = Sessions + SessionI;
+        
+        u64 BeginCounter = Counters[Session->BeginIndex];
+        u64 EndCounter = Counters[Session->EndIndex];
+        f32 Miliseconds = 1000.0f * f32(EndCounter - BeginCounter) / f32(TimestampFrequency);
+        
+        printf("%s: %.2fms\n", Session->Name, Miliseconds);
+    }
+    printf("----------------------------------------------\n");
+    
+    for (int SessionI = 0; SessionI < CurrSessionIndex; ++SessionI)
+    {
+        profile_session *Session = Sessions + SessionI;
+        free(Session->Name);
+    }
+    CurrQueryIndex = 0;
+    CurrSessionIndex = 0;
+}
+
 void
 engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
                         input *Input, b32 NeedsReload, f32 dT)
@@ -174,6 +237,20 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
             SwapChain->GetBuffer(I, IID_PPV_ARGS(&BackBuffer));
             BackBufferTexs[I] = WrapTexture(BackBuffer, D3D12_RESOURCE_STATE_PRESENT);
             AssignRTV(D, &BackBufferTexs[I], &RTVArena);
+        }
+        
+        for (int FrameI = 0; FrameI < ARRAY_COUNT(FrameData); ++FrameI)
+        {
+            frame_data *Frame = FrameData + FrameI;
+            DXOP(Context.CmdQueue->GetTimestampFrequency(&Frame->TimestampFrequency));
+            Frame->QueryCount = 1000;
+            
+            D3D12_QUERY_HEAP_DESC QueryHeapDesc = {};
+            QueryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
+            QueryHeapDesc.Count = Frame->QueryCount;
+            DXOP(D->CreateQueryHeap(&QueryHeapDesc, IID_PPV_ARGS(&Frame->QueryHeap)));
+            
+            Frame->CounterBuffer = InitBuffer(D, sizeof(u64) * Frame->QueryCount, D3D12_HEAP_TYPE_READBACK, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_FLAG_NONE);
         }
         
         UISystem = InitUISystem(&Context, &DescriptorArena);
@@ -310,6 +387,8 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
     Camera.P += Speed * dP * dT;
     
     UINT CurrBackbufferIndex = SwapChain->GetCurrentBackBufferIndex();
+    frame_data *Frame = FrameData + CurrBackbufferIndex;
+    
     Context.Reset(CurrBackbufferIndex);
     ID3D12GraphicsCommandList *CmdList = Context.CmdList;
     ID3D12CommandQueue *CmdQueue = Context.CmdQueue;
@@ -327,6 +406,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
     if (SwitchViewThreshold >= Width) SwitchViewThreshold = Width-1;
     
     // primary rays
+    Frame->BeginProfile(CmdList, "Primary rays");
     {
         CmdList->SetPipelineState(PrimaryPSO.Handle);
         CmdList->SetComputeRootSignature(PrimaryPSO.RootSignature);
@@ -352,8 +432,10 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         Context.UAVBarrier(&RayDirTex);
         Context.FlushBarriers();
     }
+    Frame->EndProfile(CmdList);
     
     // correlate history pixels
+    Frame->BeginProfile(CmdList, "Correlate history pixels");
     {
         quaternion PrevCameraInvOrientation = Conjugate(PrevCamera.Orientation);
         
@@ -373,8 +455,10 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         Context.UAVBarrier(&PrevPixelIdTex);
         Context.FlushBarriers();
     }
+    Frame->EndProfile(CmdList);
     
     // compute disocclusion
+    Frame->BeginProfile(CmdList, "Compute disocclusion");
     {
         CmdList->SetPipelineState(ComputeDisocclusionPSO.Handle);
         CmdList->SetComputeRootSignature(ComputeDisocclusionPSO.RootSignature);
@@ -395,8 +479,10 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         Context.UAVBarrier(&DisocclusionTex);
         Context.FlushBarriers();
     }
+    Frame->EndProfile(CmdList);
     
     // path tracing
+    Frame->BeginProfile(CmdList, "Path tracing");
     {
         CmdList->SetPipelineState(PathTracePSO.Handle);
         CmdList->SetComputeRootSignature(PathTracePSO.RootSignature);
@@ -426,8 +512,10 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         Context.UAVBarrier(&RayDirTex);
         Context.FlushBarriers();
     }
+    Frame->EndProfile(CmdList);
     
     // pack gbuffer
+    Frame->BeginProfile(CmdList, "Pack gbuffer");
     {
         quaternion CameraInvOrientation = Conjugate(Camera.Orientation);
         
@@ -444,8 +532,10 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         Context.UAVBarrier(&GBufferTex);
         Context.FlushBarriers();
     }
+    Frame->EndProfile(CmdList);
     
     // temporal filter
+    Frame->BeginProfile(CmdList, "Temporal Filter");
     {
         quaternion CurrCameraInvOrientation = Conjugate(Camera.Orientation);
         
@@ -478,6 +568,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         Context.CopyResourceBarriered(&PositionHistTex, &PositionTex);
         Context.CopyResourceBarriered(&NormalHistTex, &NormalTex);
     }
+    Frame->EndProfile(CmdList);
     
     //NOTE(chen): record temporal filtered only result to help debug spatial filter
     {
@@ -485,6 +576,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
     }
     
     // calc variance
+    Frame->BeginProfile(CmdList, "Calc variance");
     {
         CmdList->SetPipelineState(CalcVariancePSO.Handle);
         CmdList->SetComputeRootSignature(CalcVariancePSO.RootSignature);
@@ -500,8 +592,10 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         Context.UAVBarrier(&VarianceTex);
         Context.FlushBarriers();
     }
+    Frame->EndProfile(CmdList);
     
     // spatial filter
+    Frame->BeginProfile(CmdList, "Spatial filter");
     {
         int Iterations = 6;
         // this gaurantees the end result ends up in IntegratedNoisyLightTex
@@ -543,8 +637,10 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
             Variances[0] = VarTemp;
         }
     }
+    Frame->EndProfile(CmdList);
     
     // apply primary shading
+    Frame->BeginProfile(CmdList, "Primary shading");
     {
         CmdList->SetPipelineState(ApplyPrimaryShadingPSO.Handle);
         CmdList->SetComputeRootSignature(ApplyPrimaryShadingPSO.RootSignature);
@@ -560,6 +656,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         Context.UAVBarrier(&IntegratedLightTex);
         Context.FlushBarriers();
     }
+    Frame->EndProfile(CmdList);
     
     // apply primary shading on noisy input for comparison
     {
@@ -578,6 +675,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
     }
     
     // TAA
+    Frame->BeginProfile(CmdList, "TAA");
     {
         CmdList->SetPipelineState(TaaPSO.Handle);
         CmdList->SetComputeRootSignature(TaaPSO.RootSignature);
@@ -595,6 +693,7 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
         
         Context.CopyResourceBarriered(&TaaHistTex, &TaaOutputTex);
     }
+    Frame->EndProfile(CmdList);
     
     Context.UAVBarrier(&LightHistTex);
     Context.FlushBarriers();
@@ -627,6 +726,9 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
     Context.TransitionBarrier(BackBufferTex, D3D12_RESOURCE_STATE_PRESENT);
     Context.FlushBarriers();
     
+    CmdList->ResolveQueryData(Frame->QueryHeap, D3D12_QUERY_TYPE_TIMESTAMP,
+                              0, Frame->CurrQueryIndex, Frame->CounterBuffer, 0);
+    
     DXOP(CmdList->Close());
     
     ID3D12CommandList *CmdLists[] = {CmdList};
@@ -636,6 +738,8 @@ engine::UpdateAndRender(HWND Window, int ClientWidth, int ClientHeight,
     
     UINT NextBackbufferIndex = SwapChain->GetCurrentBackBufferIndex();
     Context.WaitForGpu(NextBackbufferIndex);
+    
+    FrameData[NextBackbufferIndex].ReadbackCounters();
     
     FrameIndex += 1;
     PrevCamera = Camera;

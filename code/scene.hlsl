@@ -27,6 +27,9 @@ float sdBox(float3 P, float3 Radius)
 //material MapMaterial(int MatId, float3 P, float Time);
 //float3 Env(float3 Rd, float Time);
 //float Fog(float Depth);
+//float3 SunDir();
+//float3 SunLight();
+//float SunAperture();
 
 //#include "demo.hlsl"
 #include "tunnel.hlsl"

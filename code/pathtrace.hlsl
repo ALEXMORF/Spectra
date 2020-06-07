@@ -56,6 +56,30 @@ float3 SampleHemisphereCosineWeighted(float3 N, float2 R)
     return X*XAxis + Y*YAxis + Z*N;
 }
 
+float3 SampleConeCosineWeighted(float3 N, float2 R, float Aperture)
+{
+    float3 XAxis;
+    if (abs(N.y) > 0.99)
+    {
+        XAxis = normalize(cross(N, float3(0, 0, 1)));
+    }
+    else
+    {
+        XAxis = normalize(cross(float3(0, 1, 0), N));
+    }
+    
+    float3 YAxis = cross(N, XAxis);
+    
+    float Radius = sqrt(R.x) * Aperture;
+    float Angle = R.y * 2.0 * Pi;
+    
+    float X = Radius * cos(Angle);
+    float Y = Radius * sin(Angle);
+    float Z = sqrt(1.0 - Radius*Radius);
+    
+    return X*XAxis + Y*YAxis + Z*N;
+}
+
 [RootSignature(RS)]
 [numthreads(32, 32, 1)]
 void main(uint2 ThreadId: SV_DispatchThreadID)
@@ -89,6 +113,18 @@ void main(uint2 ThreadId: SV_DispatchThreadID)
             float3 Attenuation = 1.0;
             for (int Depth = 0; Depth < BounceCount; ++Depth)
             {
+                float3 SunSampleDir = SampleConeCosineWeighted(SunDir(), Rand2(), SunAperture());
+                
+                if (dot(HitN, SunSampleDir) > 0.0)
+                {
+                    hit SunHit = RayMarch(HitP + 0.01*HitN, SunSampleDir, Context.Time);
+                    if (SunHit.MatId == -1)
+                    {
+                        float3 SunContrib = dot(HitN, SunSampleDir) * SunLight();
+                        Sample += Attenuation * SunContrib;
+                    }
+                }
+                
                 float3 Ro = HitP + 0.01*HitN;
                 float2 R = Rand2();
                 float3 Rd = SampleHemisphereCosineWeighted(HitN, R);

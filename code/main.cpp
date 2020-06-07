@@ -227,8 +227,6 @@ TrackAllCodeFiles()
     {
         do 
         {
-            printf("Name: %s ", Entry.cFileName);
-            
             if (Entry.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) 
             {
                 // directory
@@ -262,13 +260,11 @@ TrackAllCodeFiles()
     }
 }
 
-int CALLBACK
-WinMain(HINSTANCE Instance, 
-        HINSTANCE PrevInstance, 
-        LPSTR pCmdLine, 
-        int nCmdShow)
+int main()
 {
     SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    
+    HMODULE Instance = GetModuleHandleA(0);
     
     WNDCLASSA WindowClass = {};
     WindowClass.style = CS_OWNDC;
